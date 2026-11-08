@@ -23,10 +23,6 @@ jobs:
           persist-credentials: false
       - name: Swift
         run: swift --version
-      # Si la descarga falla (le pasa a veces a GitHub), los tests de compatibilidad se saltan solos.
-      - name: KeePassXC (compatibility tests)
-        continue-on-error: true
-        run: for i in 1 2 3; do brew install --cask keepassxc && exit 0; sleep 20; done; exit 1
       - name: Tests
         run: swift test
       - name: Extension
