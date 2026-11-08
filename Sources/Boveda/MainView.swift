@@ -27,63 +27,7 @@ struct MainView: View {
         .toolbarBackgroundVisibility(colorScheme == .dark ? .visible : .automatic, for: .windowToolbar)
         .searchFocused($focus, equals: .search)
         .focusedSceneValue(\.browserFocus, focus)
-        // Barra personalizable: clic derecho → "Personalizar barra de herramientas…".
-        .toolbar(id: "principal") {
-            ToolbarItem(id: "guardado", placement: .navigation) {
-                SaveIndicator()
-            }
-            ToolbarItem(id: "pestanas", placement: .principal) {
-                DatabaseTabs()
-            }
-            ToolbarItem(id: "generador", placement: .primaryAction) {
-                Button { showGenerator.toggle() } label: { Label("Generador", systemImage: "dice") }
-                    .help("Generador de contraseñas")
-                    .popover(isPresented: $showGenerator, arrowEdge: .bottom) { GeneratorView(onUse: nil).frame(width: 340) }
-            }
-            ToolbarItem(id: "informe", placement: .primaryAction, showsByDefault: false) {
-                Button { model.sheet = .report } label: { Label("Informe", systemImage: "chart.bar.doc.horizontal") }
-                    .help("Informe de contraseñas (⇧⌘R)")
-            }
-            ToolbarItem(id: "copiar", placement: .primaryAction, showsByDefault: false) {
-                Button { model.copyPassword() } label: { Label("Copiar " + (model.selectedEntry?.entry.kind ?? .login).mainValueName, systemImage: "key") }
-                    .help("Copiar " + (model.selectedEntry?.entry.kind ?? .login).mainValueName + " (⌘C)")
-                    .disabled(model.selectedEntry == nil)
-            }
-            ToolbarItem(id: "abrirweb", placement: .primaryAction, showsByDefault: false) {
-                Button { if let e = model.selectedEntry?.entry { model.copyPasswordAndOpenURL(e) } } label: { Label("Contraseña y web", systemImage: "safari") }
-                    .help("Copiar contraseña y abrir la web (⌥⌘U)")
-                    .disabled(model.selectedEntry == nil)
-            }
-            ToolbarItem(id: "rapida", placement: .primaryAction, showsByDefault: false) {
-                Button { QuickSearchPanel.show() } label: { Label("Búsqueda rápida", systemImage: "magnifyingglass.circle") }
-                    .help("Búsqueda rápida")
-            }
-            ToolbarItem(id: "ajustesbase", placement: .primaryAction, showsByDefault: false) {
-                Button { model.sheet = .databaseSettings } label: { Label("Ajustes de la base", systemImage: "slider.horizontal.3") }
-                    .help("Ajustes de la base de datos (⇧⌘,)")
-            }
-            ToolbarItem(id: "bloquear", placement: .primaryAction) {
-                Button { model.lock() } label: { Label("Bloquear", systemImage: "lock") }
-                    .help("Bloquear (⌘L)")
-            }
-            ToolbarItem(id: "grupo", placement: .primaryAction) {
-                Button { model.requestNewGroup() } label: { Label("Nuevo grupo", systemImage: "folder.badge.plus") }
-                    .help("Nuevo grupo (⌥⌘N)")
-            }
-            ToolbarItem(id: "nueva", placement: .primaryAction) {
-                Menu {
-                    ForEach(EntryKind.allCases, id: \.self) { kind in
-                        Button { model.newEntry(kind) } label: { Label(kind.label, systemImage: kind.symbol) }
-                    }
-                } label: {
-                    Label("Nueva entrada", systemImage: "plus")
-                } primaryAction: {
-                    model.newEntry()
-                }
-                .accessibilityLabel("Nueva entrada")
-                .help("Nueva entrada (⌘N) · mantén pulsado para tarjeta o nota")
-            }
-        }
+        .toolbar(id: "principal") { mainToolbar }
         .onChange(of: model.searchFocusTrigger) { focus = .search }
         .onChange(of: model.focusRequest) { _, request in
             guard let request else { return }
@@ -95,17 +39,88 @@ struct MainView: View {
             if !list.contains(where: { $0.uuid == model.selectedEntryID }) { model.selectedEntryID = list.first?.uuid }
         }
         .sheet(item: $model.editing) { draft in EntryEditorView(draft: draft) }
-        .sheet(item: $model.sheet) { kind in
-            switch kind {
-            case .shortcuts: ShortcutsSheet()
-            case .report: ReportSheet()
-            case .databaseSettings: DatabaseSettingsSheet()
-            case .totp: TOTPSheet()
-            case .history: HistorySheet()
-            case .newGroup:
-                NameSheet(title: model.newGroupParent.flatMap { model.root?.group($0)?.displayName }.map { "Nuevo grupo en \($0)" } ?? "Nuevo grupo",
-                          placeholder: "Nombre del grupo", action: "Crear") { model.addGroup(named: $0, in: model.newGroupParent) }
+        .sheet(item: $model.sheet) { kind in sheetView(kind) }
+    }
+
+    // La barra y las hojas van aparte: en un solo `body` el compilador de Swift 6.1 no termina de comprobar los tipos.
+
+    private var copyName: String { (model.selectedEntry?.entry.kind ?? .login).mainValueName }
+
+    /// Barra personalizable: clic derecho → "Personalizar barra de herramientas…".
+    @ToolbarContentBuilder
+    private var mainToolbar: some CustomizableToolbarContent {
+        ToolbarItem(id: "guardado", placement: .navigation) {
+            SaveIndicator()
+        }
+        ToolbarItem(id: "pestanas", placement: .principal) {
+            DatabaseTabs()
+        }
+        ToolbarItem(id: "generador", placement: .primaryAction) {
+            Button { showGenerator.toggle() } label: { Label("Generador", systemImage: "dice") }
+                .help("Generador de contraseñas")
+                .popover(isPresented: $showGenerator, arrowEdge: .bottom) { GeneratorView(onUse: nil).frame(width: 340) }
+        }
+        ToolbarItem(id: "informe", placement: .primaryAction, showsByDefault: false) {
+            Button { model.sheet = .report } label: { Label("Informe", systemImage: "chart.bar.doc.horizontal") }
+                .help("Informe de contraseñas (⇧⌘R)")
+        }
+        ToolbarItem(id: "copiar", placement: .primaryAction, showsByDefault: false) {
+            Button { model.copyPassword() } label: { Label("Copiar " + copyName, systemImage: "key") }
+                .help("Copiar \(copyName) (⌘C)")
+                .disabled(model.selectedEntry == nil)
+        }
+        actionItems
+    }
+
+    @ToolbarContentBuilder
+    private var actionItems: some CustomizableToolbarContent {
+        ToolbarItem(id: "abrirweb", placement: .primaryAction, showsByDefault: false) {
+            Button { if let e = model.selectedEntry?.entry { model.copyPasswordAndOpenURL(e) } } label: { Label("Contraseña y web", systemImage: "safari") }
+                .help("Copiar contraseña y abrir la web (⌥⌘U)")
+                .disabled(model.selectedEntry == nil)
+        }
+        ToolbarItem(id: "rapida", placement: .primaryAction, showsByDefault: false) {
+            Button { QuickSearchPanel.show() } label: { Label("Búsqueda rápida", systemImage: "magnifyingglass.circle") }
+                .help("Búsqueda rápida")
+        }
+        ToolbarItem(id: "ajustesbase", placement: .primaryAction, showsByDefault: false) {
+            Button { model.sheet = .databaseSettings } label: { Label("Ajustes de la base", systemImage: "slider.horizontal.3") }
+                .help("Ajustes de la base de datos (⇧⌘,)")
+        }
+        ToolbarItem(id: "bloquear", placement: .primaryAction) {
+            Button { model.lock() } label: { Label("Bloquear", systemImage: "lock") }
+                .help("Bloquear (⌘L)")
+        }
+        ToolbarItem(id: "grupo", placement: .primaryAction) {
+            Button { model.requestNewGroup() } label: { Label("Nuevo grupo", systemImage: "folder.badge.plus") }
+                .help("Nuevo grupo (⌥⌘N)")
+        }
+        ToolbarItem(id: "nueva", placement: .primaryAction) {
+            Menu {
+                ForEach(EntryKind.allCases, id: \.self) { kind in
+                    Button { model.newEntry(kind) } label: { Label(kind.label, systemImage: kind.symbol) }
+                }
+            } label: {
+                Label("Nueva entrada", systemImage: "plus")
+            } primaryAction: {
+                model.newEntry()
             }
+            .accessibilityLabel("Nueva entrada")
+            .help("Nueva entrada (⌘N) · mantén pulsado para tarjeta o nota")
+        }
+    }
+
+    @ViewBuilder
+    private func sheetView(_ kind: AppModel.SheetKind) -> some View {
+        switch kind {
+        case .shortcuts: ShortcutsSheet()
+        case .report: ReportSheet()
+        case .databaseSettings: DatabaseSettingsSheet()
+        case .totp: TOTPSheet()
+        case .history: HistorySheet()
+        case .newGroup:
+            NameSheet(title: model.newGroupParent.flatMap { model.root?.group($0)?.displayName }.map { "Nuevo grupo en \($0)" } ?? "Nuevo grupo",
+                      placeholder: "Nombre del grupo", action: "Crear") { model.addGroup(named: $0, in: model.newGroupParent) }
         }
     }
 }
