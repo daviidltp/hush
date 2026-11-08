@@ -1,0 +1,511 @@
+import BovedaCore
+import KDBXKit
+import SwiftUI
+
+struct EntryEditorView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.dismiss) private var dismiss
+    @State var draft: EntryDraft
+    @State private var revealPassword = false
+    @State private var showGenerator = false
+    @FocusState private var focus: Field?
+
+    enum Field: Hashable { case title, user, password, url, otp, notes, tags, card(String) }
+    @State private var creatingAlias = false
+
+    private var canSave: Bool { draft.otpIsValid && draft.customKeysAreValid }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 18) {
+                    header
+
+                    if draft.isNew { kindPicker }
+
+                    switch draft.kind {
+                    case .login:
+                        VStack(spacing: 0) {
+                            EditRow("Usuario", focused: focus == .user) { userField }
+                            Divider().padding(.horizontal, 14)
+                            EditRow("Contraseña", focused: focus == .password) { passwordField }
+                            Divider().padding(.horizontal, 14)
+                            EditRow("Web", focused: focus == .url) {
+                                TextField("https://", text: $draft.url).focused($focus, equals: .url)
+                            }
+                            Divider().padding(.horizontal, 14)
+                            EditRow("Código 2FA", focused: focus == .otp) { otpField }
+                        }
+                        .card()
+                    case .card:
+                        CardArt(holder: draft.card[CardField.holder] ?? "", number: draft.card[CardField.number] ?? "",
+                                expiry: draft.card[CardField.expiry] ?? "", title: draft.title)
+                            .frame(maxWidth: .infinity)
+                        VStack(spacing: 0) {
+                            cardRow("Número de tarjeta", CardField.number, placeholder: "0000 0000 0000 0000", mono: true)
+                            Divider().padding(.horizontal, 14)
+                            cardRow("Titular", CardField.holder, placeholder: "Como aparece en la tarjeta")
+                            Divider().padding(.horizontal, 14)
+                            HStack(spacing: 0) {
+                                cardRow("Caducidad", CardField.expiry, placeholder: "MM/AA", mono: true)
+                                Divider().frame(height: 34)
+                                cardRow("CVV", CardField.cvv, placeholder: "123", mono: true, secure: true)
+                                Divider().frame(height: 34)
+                                cardRow("PIN", CardField.pin, placeholder: "Opcional", mono: true, secure: true)
+                            }
+                        }
+                        .card()
+                    case .note:
+                        EmptyView()
+                    }
+
+                    VStack(spacing: 0) {
+                        EditRow("Grupo", focused: false) { groupMenu }
+                        Divider().padding(.horizontal, 14)
+                        EditRow("Etiquetas", focused: focus == .tags) {
+                            TextField("Separadas por comas", text: $draft.tags).focused($focus, equals: .tags)
+                        }
+                        Divider().padding(.horizontal, 14)
+                        HStack {
+                            Text("Caduca").font(.ui(13))
+                            Spacer()
+                            if draft.expires {
+                                DatePicker("Fecha de caducidad", selection: $draft.expiryDate, displayedComponents: .date)
+                                    .labelsHidden()
+                                    .datePickerStyle(.field)
+                                    .fixedSize()
+                            }
+                            Toggle("Caduca", isOn: $draft.expires.animation(.easeOut(duration: 0.15)))
+                                .labelsHidden()
+                                .toggleStyle(.switch)
+                                .controlSize(.small)
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                    }
+                    .card()
+
+                    EditorSection(draft.kind == .note ? "Nota · admite Markdown (# título, - lista, **negrita**)" : "Notas") {
+                        TextEditor(text: $draft.notes)
+                            .font(draft.kind == .note ? .mono(13) : .ui(13))
+                            .scrollContentBackground(.hidden)
+                            .scrollIndicators(.never)
+                            .focused($focus, equals: .notes)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 10)
+                            .frame(minHeight: draft.kind == .note ? 300 : 90)
+                            .card()
+                            .overlay(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous)
+                                .strokeBorder(focus == .notes ? Theme.borderStrong : .clear))
+                    }
+
+                    CustomFieldsEditor(fields: $draft.customFields)
+                    if !draft.customKeysAreValid {
+                        Text("Cada campo necesita un nombre distinto y que no sea uno de los estándar.")
+                            .font(.ui(12)).foregroundStyle(Theme.red)
+                    }
+                }
+                .padding(24)
+            }
+            .scrollIndicators(.automatic)
+
+            HStack(spacing: 8) {
+                if !draft.isNew {
+                    Text("La versión anterior se guarda en el historial")
+                        .font(.ui(11)).foregroundStyle(Theme.textTertiary)
+                }
+                Spacer()
+                Button("Cancelar") { dismiss() }
+                    .buttonStyle(GButtonStyle(kind: .ghost))
+                    .keyboardShortcut(.cancelAction)
+                Button(draft.isNew ? "Crear" : "Guardar") { model.commit(draft) }
+                    .buttonStyle(GButtonStyle(kind: .primary))
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .disabled(!canSave)
+            }
+            .padding(.horizontal, 20)
+            .frame(height: 60)
+            .hairline(.top)
+        }
+        .frame(width: 560, height: 660)
+        .background(Theme.background)
+        .onAppear { focus = draft.isNew ? .title : nil }
+    }
+
+    /// Icono (el logo de la web en cuanto se escribe) y título grande sin caja, como en el detalle.
+    private var header: some View {
+        HStack(spacing: 14) {
+            DraftIcon(title: draft.title, url: draft.kind == .login ? draft.url : "", kind: draft.kind)
+            VStack(alignment: .leading, spacing: 4) {
+                TextField(draft.isNew ? ["Nueva entrada", "Nombre de la tarjeta", "Nueva nota"][EntryKind.allCases.firstIndex(of: draft.kind)!] : "Título", text: $draft.title)
+                    .textFieldStyle(.plain)
+                    .font(.ui(20, .semibold))
+                    .frame(minHeight: 28)
+                    .focused($focus, equals: .title)
+                Text("En " + (model.root?.group(draft.groupID)?.displayName ?? ""))
+                    .font(.ui(12))
+                    .foregroundStyle(Theme.textTertiary)
+            }
+        }
+        .padding(.bottom, 4)
+    }
+
+    private var passwordField: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 2) {
+                Group {
+                    if revealPassword { TextField("", text: $draft.password) } else { SecureField("", text: $draft.password) }
+                }
+                .accessibilityLabel("Contraseña")
+                .font(.mono(13))
+                .focused($focus, equals: .password)
+                IconButton(symbol: revealPassword ? "eye.slash" : "eye", help: revealPassword ? "Ocultar" : "Mostrar", size: 26) { revealPassword.toggle() }
+                IconButton(symbol: "arrow.clockwise", help: "Generar otra", size: 26) {
+                    draft.password = PasswordGenerator.generate(Preferences.generator)
+                    revealPassword = true
+                }
+                IconButton(symbol: "slider.horizontal.3", help: "Opciones del generador", size: 26) { showGenerator.toggle() }
+                    .popover(isPresented: $showGenerator, arrowEdge: .trailing) {
+                        GeneratorView { generated in
+                            draft.password = generated
+                            revealPassword = true
+                            showGenerator = false
+                        }
+                        .frame(width: 340)
+                    }
+            }
+            if !draft.password.isEmpty {
+                // Con una referencia ({REF:…}) se valora la contraseña a la que apunta, no el texto de la referencia.
+                let effective = model.resolved(draft.password)
+                let strength = PasswordStrength.of(effective)
+                if Preferences.checkBreaches, (AuditServices.shared.pwnedCount(for: effective) ?? 0) > 0 {
+                    StrengthBar(fraction: 0.08, label: "Filtrada · cámbiala")
+                } else {
+                    StrengthBar(fraction: strength.fraction, label: strength.label)
+                }
+            }
+        }
+    }
+
+    private var kindPicker: some View {
+        HStack(spacing: 6) {
+            ForEach(EntryKind.allCases, id: \.self) { kind in
+                Button {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        if kind == .login && draft.password.isEmpty { draft.password = PasswordGenerator.generate(Preferences.generator) }
+                        if kind != .login && draft.kind == .login && !draft.isNew { return }
+                        draft.kind = kind
+                    }
+                } label: {
+                    Label(kind.label, systemImage: kind.symbol)
+                        .font(.ui(12, .medium))
+                        .foregroundStyle(draft.kind == kind ? Theme.onPrimary : Theme.textSecondary)
+                        .padding(.horizontal, 12)
+                        .frame(height: 28)
+                        .background(Capsule().fill(draft.kind == kind ? Theme.primary : Theme.fill))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func cardRow(_ label: String, _ key: String, placeholder: String, mono: Bool = false, secure: Bool = false) -> some View {
+        let binding = Binding(get: { draft.card[key] ?? "" }, set: { draft.card[key] = $0 })
+        return EditRow(label, focused: focus == .card(key)) {
+            Group {
+                if secure && !revealPassword { SecureField(placeholder, text: binding) } else { TextField(placeholder, text: binding) }
+            }
+            .font(mono ? .mono(13) : .ui(13))
+            .focused($focus, equals: .card(key))
+        }
+    }
+
+    private var userField: some View {
+        HStack(spacing: 2) {
+            TextField("nombre@correo.com", text: $draft.userName).focused($focus, equals: .user)
+            if SimpleLogin.isConfigured {
+                if creatingAlias {
+                    ProgressView().controlSize(.small).frame(width: 26, height: 26)
+                } else {
+                    IconButton(symbol: "at.badge.plus", help: "Crear un alias de email con SimpleLogin", size: 26) { createAlias() }
+                }
+            }
+        }
+    }
+
+    private func createAlias() {
+        creatingAlias = true
+        let host = FaviconStore.host(of: draft.url)
+        Task {
+            do {
+                draft.userName = try await SimpleLogin.createAlias(for: host, note: draft.title)
+            } catch {
+                model.alert = AppModel.AlertMessage(title: "No se ha podido crear el alias", message: error.localizedDescription)
+            }
+            creatingAlias = false
+        }
+    }
+
+    private var otpField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            TextField("Enlace otpauth:// o clave secreta", text: $draft.otp)
+                .focused($focus, equals: .otp)
+            if !draft.otpIsValid {
+                Text("No es un código 2FA válido").font(.ui(11)).foregroundStyle(Theme.red)
+            } else if let totp = TOTP.parse(draft.otp), !draft.otp.isEmpty {
+                Text("Código actual: \(totp.code())").font(.mono(11)).foregroundStyle(Theme.textSecondary)
+            }
+        }
+    }
+
+    private var groupMenu: some View {
+        let groups = model.root?.flattened(excluding: model.vault?.excludedFromBrowsing ?? []) ?? []
+        let current = groups.first { $0.group.uuid == draft.groupID }?.group.displayName ?? ""
+        return Menu {
+            ForEach(groups, id: \.group.uuid) { item in
+                Button {
+                    draft.groupID = item.group.uuid
+                } label: {
+                    Text(String(repeating: "    ", count: item.level) + item.group.displayName)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "folder").font(.system(size: 12)).foregroundStyle(Theme.textSecondary)
+                Text(current).font(.ui(13)).foregroundStyle(Theme.text)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 9, weight: .semibold)).foregroundStyle(Theme.textTertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+    }
+}
+
+/// Fila editable dentro de una tarjeta: etiqueta pequeña arriba y el campo sin caja debajo.
+private struct EditRow<Content: View>: View {
+    let label: String
+    let focused: Bool
+    @ViewBuilder var content: Content
+
+    init(_ label: String, focused: Bool, @ViewBuilder content: () -> Content) {
+        self.label = label
+        self.focused = focused
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(.ui(11, .medium)).foregroundStyle(focused ? Theme.textSecondary : Theme.textTertiary)
+                .accessibilityHidden(true)
+            content
+                .textFieldStyle(.plain)
+                .font(.ui(13))
+        }
+        // VoiceOver anuncia el nombre del campo («Web», «CVV»…) y no su texto de ejemplo.
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
+        .background(focused ? Theme.hover.opacity(0.6) : .clear)
+    }
+}
+
+private struct EditorSection<Content: View>: View {
+    let title: String
+    @ViewBuilder var content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
+            content
+        }
+    }
+}
+
+/// Icono del borrador: el logo de la web si ya se sabe, si no la inicial.
+private struct DraftIcon: View {
+    let title: String
+    let url: String
+    var kind: EntryKind = .login
+
+    var body: some View {
+        if let image = FaviconStore.shared.image(for: url) {
+            Image(nsImage: image)
+                .resizable()
+                .interpolation(.high)
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 28, height: 28)
+                .frame(width: 44, height: 44)
+                .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Color.white))
+                .overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).strokeBorder(Theme.border))
+        } else if title.trimmingCharacters(in: .whitespaces).isEmpty {
+            Image(systemName: kind.symbol)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(Theme.textSecondary)
+                .frame(width: 44, height: 44)
+                .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Theme.fill))
+        } else {
+            EntryAvatar(title: title, size: 44)
+        }
+    }
+}
+
+private struct CustomFieldsEditor: View {
+    @Binding var fields: [EntryDraft.CustomField]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Campos personalizados").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
+            if !fields.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach($fields) { $field in
+                        if field.id != fields.first?.id { Divider().padding(.horizontal, 14) }
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                TextField("Nombre", text: $field.key)
+                                    .font(.ui(11, .medium))
+                                    .foregroundStyle(Theme.textSecondary)
+                                Group {
+                                    if field.protected { SecureField("Valor", text: $field.value) } else { TextField("Valor", text: $field.value) }
+                                }
+                                .font(.ui(13))
+                            }
+                            .textFieldStyle(.plain)
+                            IconButton(symbol: field.protected ? "lock.fill" : "lock.open", help: field.protected ? "Oculto: pulsa para mostrarlo" : "Visible: pulsa para ocultarlo", size: 26) { field.protected.toggle() }
+                            IconButton(symbol: "minus.circle", help: "Quitar campo", size: 26) { fields.removeAll { $0.id == field.id } }
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                    }
+                }
+                .card()
+            }
+            Button {
+                fields.append(.init(key: "", value: "", protected: false))
+            } label: {
+                Label("Añadir campo", systemImage: "plus")
+            }
+            .buttonStyle(GButtonStyle(kind: .ghost, compact: true))
+            .foregroundStyle(Theme.textSecondary)
+        }
+    }
+}
+
+/// Generador de contraseñas en un panel flotante.
+struct GeneratorView: View {
+    @Environment(AppModel.self) private var model
+    let onUse: ((String) -> Void)?
+    @State private var options = Preferences.generator
+    @State private var password = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Generador").font(.ui(14, .semibold))
+                Spacer()
+                IconButton(symbol: "arrow.clockwise", help: "Otra", size: 26) { regenerate() }
+            }
+            ColoredPassword(password: password)
+                .textSelection(.enabled)
+                .lineLimit(3)
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: Theme.radius).fill(Theme.backgroundSubtle))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.border))
+            let bits = PasswordGenerator.entropy(options)
+            StrengthBar(fraction: min(bits / 128, 1), label: "\(Int(bits)) bits")
+
+            Picker("", selection: $options.usePassphrase) {
+                Text("Caracteres").tag(false)
+                Text("Palabras").tag(true)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+
+            if options.usePassphrase {
+                HStack {
+                    Text("Palabras").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    Text("\(options.wordCount)").font(.mono(12, .medium))
+                }
+                Slider(value: Binding(get: { Double(options.wordCount) }, set: { options.wordCount = Int($0.rounded()) }), in: 3...10, step: 1)
+                    .accessibilityLabel("Número de palabras")
+                    .accessibilityValue("\(options.wordCount)")
+                    .controlSize(.small)
+                HStack(spacing: 6) {
+                    Text("Separador").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    ForEach(["-", ".", "_", " "], id: \.self) { sep in
+                        chip(sep == " " ? "␣" : sep, Binding(get: { options.separator == sep }, set: { if $0 { options.separator = sep } }))
+                            .frame(width: 34)
+                    }
+                }
+                HStack(spacing: 14) {
+                    Toggle("Mayúscula inicial", isOn: $options.capitalize)
+                    Toggle("Añadir un número", isOn: $options.addNumber)
+                }
+                .toggleStyle(.checkbox).font(.ui(12))
+            } else {
+                HStack {
+                    Text("Longitud").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
+                    Spacer()
+                    Text("\(options.length)").font(.mono(12, .medium))
+                }
+                Slider(value: Binding(get: { Double(options.length) }, set: { options.length = Int($0.rounded()) }), in: 8...64)
+                    .accessibilityLabel("Longitud")
+                    .accessibilityValue("\(options.length) caracteres")
+                    .controlSize(.small)
+
+                HStack(spacing: 6) {
+                    chip("ABC", $options.uppercase)
+                    chip("abc", $options.lowercase)
+                    chip("123", $options.digits)
+                    chip("#$&", $options.symbols)
+                }
+                Toggle("Evitar caracteres que se confunden (l, 1, O, 0)", isOn: $options.avoidAmbiguous)
+                    .toggleStyle(.checkbox).font(.ui(12))
+            }
+
+            HStack {
+                Button("Copiar") { model.copy(password, label: "Contraseña", markUsed: false) }
+                    .buttonStyle(GButtonStyle(kind: .secondary, compact: true))
+                Spacer()
+                if let onUse {
+                    Button("Usar esta") { onUse(password) }
+                        .buttonStyle(GButtonStyle(kind: .primary, compact: true))
+                }
+            }
+        }
+        .padding(16)
+        .background(Theme.background)
+        .onAppear(perform: regenerate)
+        .onChange(of: options) { _, new in
+            Preferences.generator = new
+            regenerate()
+        }
+    }
+
+    private func regenerate() { password = PasswordGenerator.generate(options) }
+
+    private func chip(_ label: String, _ isOn: Binding<Bool>) -> some View {
+        Button { isOn.wrappedValue.toggle() } label: {
+            Text(label)
+                .font(.mono(12, .medium))
+                .foregroundStyle(isOn.wrappedValue ? Theme.onPrimary : Theme.textSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 28)
+                .background(RoundedRectangle(cornerRadius: Theme.radius).fill(isOn.wrappedValue ? Theme.primary : Theme.background))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(isOn.wrappedValue ? .clear : Theme.border))
+        }
+        .buttonStyle(.plain)
+    }
+}
