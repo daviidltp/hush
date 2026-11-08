@@ -1358,7 +1358,12 @@ final class AppModel {
             Task { @MainActor in
                 guard let self, !self.openURLs.isEmpty else { return }
                 let minutes = Preferences.autoLockMinutes
-                if minutes > 0, Date().timeIntervalSince(self.lastActivity) > Double(minutes) * 60 {
+                // Inactividad = no estás usando el Mac (teclado o ratón en cualquier app), no solo Hush:
+                // si trabajas en otra app, Hush no se bloquea; si te vas del ordenador, sí.
+                let anyInput = CGEventType(rawValue: ~0)!
+                let macIdle = CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: anyInput)
+                let idle = min(Date().timeIntervalSince(self.lastActivity), macIdle)
+                if minutes > 0, idle > Double(minutes) * 60 {
                     self.lockAll(force: true)
                     return
                 }
