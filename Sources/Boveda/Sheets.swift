@@ -388,7 +388,7 @@ private struct SecuritySettings: View {
     var body: some View {
         Form {
             Section("Bloqueo") {
-                Picker("Bloquear tras inactividad", selection: $autoLock) {
+                Picker("Bloquear si no usas el Mac durante", selection: $autoLock) {
                     Text("1 minuto").tag(1)
                     Text("5 minutos").tag(5)
                     Text("15 minutos").tag(15)
