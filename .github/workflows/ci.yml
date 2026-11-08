@@ -1,0 +1,35 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: swift test
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Swift
+        run: swift --version
+      - name: KeePassXC (compatibility tests)
+        run: brew install --cask keepassxc
+      - name: Tests
+        run: swift test
+      - name: Extension
+        run: |
+          node --check Extension/src/background.js
+          node --check Extension/src/content.js
+          node --check Extension/src/popup.js
+          python3 Extension/build.py "$RUNNER_TEMP/extension" com.example.hush 0.0.0

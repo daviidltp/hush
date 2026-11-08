@@ -1,60 +1,62 @@
 <p align="center"><img src="docs/logo/llave/icono.png" width="128" alt=""></p>
 
+<p align="center">English · <a href="README.es.md">Español</a></p>
+
 # Hush
 
-Gestor de contraseñas para macOS, nativo (Swift y SwiftUI), sobre archivos **KDBX**: el formato abierto de KeePass. Tu base es un archivo cifrado que guardas donde quieras (iCloud Drive, Dropbox, un USB) y que puedes abrir también con otras apps compatibles, en el Mac o en el móvil. Sin cuentas, sin servidores y sin suscripción.
+A native macOS password manager (Swift and SwiftUI) built on **KDBX** files, the open KeePass format. Your vault is an encrypted file you keep wherever you want (iCloud Drive, Dropbox, a USB stick) and can also open with other compatible apps on your Mac or phone. No accounts, no servers, no subscription.
 
-> **Beta.** Lo uso a diario, pero no ha pasado una auditoría externa. Haz copias de tu base antes de probarlo.
+> **Beta.** I use it every day, but it has not had an external security audit. Back up your vault before trying it. The app UI is in Spanish.
 
-## Qué hace
+## Features
 
-- Desbloqueo con contraseña maestra, archivo de clave o Touch ID (con el Secure Enclave).
-- Varias bases abiertas a la vez, búsqueda, favoritos, grupos, papelera e historial de cambios con comparar y restaurar.
-- Códigos 2FA (TOTP), tarjetas, notas seguras, adjuntos y referencias entre entradas.
-- Generador de contraseñas y frases en español.
-- Auditoría: contraseñas filtradas (Have I Been Pwned con k-anonimato: solo salen 5 caracteres del hash), repetidas, parecidas, débiles y webs que admiten 2FA.
-- Búsqueda rápida con atajo global (⇧⌘Espacio) e icono en la barra de menús.
-- Autorrelleno en el navegador (Chrome, Brave, Edge, Arc, Vivaldi, Opera, Firefox y Zen).
-- Exportar a CSV o .zip con adjuntos, con aviso de que van sin cifrar.
+- Unlock with a master password, a key file or Touch ID (backed by the Secure Enclave).
+- Several vaults open at once, search, favorites, groups, recycle bin and entry history with compare and restore.
+- 2FA codes (TOTP), cards, secure notes, attachments and field references.
+- Password and passphrase generator.
+- Audit: breached passwords (Have I Been Pwned with k-anonymity: only 5 characters of the hash leave your Mac), reused, similar and weak passwords, and sites that support 2FA.
+- Quick search with a global shortcut (⇧⌘Space) and a menu bar icon.
+- Browser autofill (Chrome, Brave, Edge, Arc, Vivaldi, Opera, Firefox and Zen).
+- Export to CSV or .zip with attachments, with a warning that they are not encrypted.
 
-## Compilar
+## Build
 
-Requiere macOS 15 o posterior y las herramientas de línea de comandos de Xcode (Swift 6.1).
+Requires macOS 15 or later and the Xcode command line tools (Swift 6.1+).
 
 ```sh
 swift test                      # tests
-./build-app.sh                  # compila, firma e instala en ~/Applications/Hush.app
-CONFIG=debug ./build-app.sh     # versión de pruebas en build/, sin instalar
+./build-app.sh                  # build, sign and install to ~/Applications/Hush.app
+CONFIG=debug ./build-app.sh     # test build in build/, not installed
 ```
 
-Para firmar, pon tu certificado en la variable `SIGN_IDENTITY` o en un archivo `.sign-identity` (no se sube a git). Sin certificado se firma ad hoc: la app funciona, pero Touch ID y el llavero necesitan una firma estable.
+To sign, put your certificate name in the `SIGN_IDENTITY` variable or in a `.sign-identity` file (ignored by git). Without one the app is signed ad hoc: it runs, but Touch ID and the Keychain need a stable signature.
 
-## Extensión del navegador
+## Browser extension
 
-Hush copia la extensión en `~/Library/Application Support/Hush/Extension` y registra el puente de mensajería nativa en los navegadores instalados. Las instrucciones están en **Ajustes → Navegadores**.
+Hush copies the extension to `~/Library/Application Support/Hush/Extension` and registers the native messaging bridge in the installed browsers. Instructions are in **Ajustes → Navegadores** (Settings → Browsers).
 
-- **Chrome y derivados:** carga la carpeta `chromium` como extensión sin empaquetar (modo desarrollador).
-- **Firefox y Zen:** instala `Hush.xpi` desde *Complementos → Instalar complemento desde archivo*. Como aún no está firmada por Mozilla, hay que poner `xpinstall.signatures.required` en `false` (Zen, Firefox Developer Edition o Nightly).
+- **Chrome and Chromium-based browsers:** load the `chromium` folder as an unpacked extension (developer mode).
+- **Firefox and Zen:** install `Hush.xpi` from *Add-ons → Install Add-on From File*. It is not signed by Mozilla yet, so `xpinstall.signatures.required` must be `false` (Zen, Firefox Developer Edition or Nightly).
 
-La extensión todavía no está en las tiendas de Chrome ni de Firefox. Hasta entonces, cualquier programa con tu usuario podría modificar sus archivos: tenlo en cuenta.
+The extension is not in the Chrome or Firefox stores yet. Until then, any program running as your user could modify its files: keep that in mind.
 
-## Seguridad
+## Security
 
-- La base nunca sale de tu Mac sin cifrar. Hush no tiene servidor.
-- Antes de guardar, comprueba que el archivo nuevo se vuelve a abrir. Si un guardado falla, los cambios se dejan en una copia cifrada aparte.
-- Al bloquear se borran de memoria la clave y los datos, el portapapeles (si lo puso Hush) y los adjuntos abiertos.
-- La extensión no guarda contraseñas: las pide a Hush en el momento de rellenar. Solo ofrece las cuentas de la web abierta (dominio registrable según la [Public Suffix List](https://publicsuffix.org)), nunca da una contraseña de https a una página http e ignora los eventos que fabrica la página.
-- Hush solo acepta el puente del navegador si lo ha abierto un navegador firmado por su fabricante y conectado directamente a él. Cada navegador se empareja con tu permiso.
-- Lo que Hush **no** protege: un Mac ya infectado con malware que corre con tu usuario.
+- Your vault never leaves your Mac unencrypted. Hush has no server.
+- Before saving, Hush checks that the new file opens again. If a save fails, changes are kept in a separate encrypted copy.
+- Locking wipes the key and data from memory, the clipboard (if Hush put something there) and opened attachments.
+- The extension stores no passwords: it asks Hush at fill time. It only offers accounts for the open site (registrable domain according to the [Public Suffix List](https://publicsuffix.org)), never sends an https password to an http page and ignores events synthesized by the page.
+- Hush only accepts the bridge when it was launched by a browser signed by its vendor and is connected directly to it. Each browser is paired with your permission.
+- What Hush does **not** protect against: a Mac already infected with malware running as your user.
 
-Si encuentras un fallo de seguridad, abre un aviso privado en *Security → Report a vulnerability* en lugar de un issue público.
+Found a security issue? See [SECURITY.md](SECURITY.md). Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Créditos
+## Credits
 
-- [KDBXKit](https://github.com/shadone/KDBXKit) (BSD 2-Clause), copia en `Vendor/KDBXKit` con un parche de fechas.
-- Argon2 (CC0 / Apache 2.0), incluido en KDBXKit.
-- [Public Suffix List](https://publicsuffix.org) (MPL 2.0), en `Sources/BovedaCore/PublicSuffixData.swift`.
+- [KDBXKit](https://github.com/shadone/KDBXKit) (BSD 2-Clause), vendored in `Vendor/KDBXKit` with a date patch.
+- Argon2 (CC0 / Apache 2.0), included in KDBXKit.
+- [Public Suffix List](https://publicsuffix.org) (MPL 2.0), in `Sources/BovedaCore/PublicSuffixData.swift`.
 
-## Licencia
+## License
 
 [MIT](LICENSE)
