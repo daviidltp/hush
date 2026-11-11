@@ -400,31 +400,48 @@ private struct CustomFieldsEditor: View {
     }
 }
 
-/// Generador de contraseñas en un panel flotante.
+/// Generador de contraseñas en un panel flotante y en la barra de menús.
 struct GeneratorView: View {
     @Environment(AppModel.self) private var model
     let onUse: ((String) -> Void)?
+    /// En la barra de menús la cabecera ya dice «Generador».
+    var showsTitle = true
     @State private var options = Preferences.generator
     @State private var password = ""
+    @State private var copied = false
+    @State private var copiedTask: Task<Void, Never>?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
+        VStack(alignment: .leading, spacing: 14) {
+            if showsTitle {
                 Text("Generador").font(.ui(14, .semibold))
-                Spacer()
-                IconButton(symbol: "arrow.clockwise", help: "Otra", size: 26) { regenerate() }
             }
-            ColoredPassword(password: password)
-                .textSelection(.enabled)
-                .lineLimit(3)
-                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: Theme.radius).fill(Theme.backgroundSubtle))
-                .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.border))
-            let bits = PasswordGenerator.entropy(options)
-            StrengthBar(fraction: min(bits / 128, 1), label: "\(Int(bits)) bits")
 
-            Picker("", selection: $options.usePassphrase) {
+            // La contraseña con sus acciones dentro, como el resto de campos de Hush.
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 4) {
+                    ColoredPassword(password: password)
+                        .font(.mono(14))
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)  // Siempre entera, aunque sean diez palabras.
+                        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+                        .padding(.top, 4)
+                        .accessibilityLabel("Contraseña generada")
+                    IconButton(symbol: "arrow.clockwise", help: "Generar otra (⌘R)", size: 28) { regenerate() }
+                        .keyboardShortcut("r", modifiers: .command)
+                    IconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: copied ? "Copiada" : "Copiar",
+                               size: 28, tint: copied ? Theme.green : Theme.textSecondary) { copy() }
+                }
+                let bits = PasswordGenerator.entropy(options)
+                StrengthBar(fraction: min(bits / 128, 1), label: "\(PasswordStrength.of(bits: bits).label) · \(Int(bits)) bits")
+            }
+            .padding(.leading, 12)
+            .padding(.trailing, 6)
+            .padding(.vertical, 10)
+            .background(RoundedRectangle(cornerRadius: Theme.radius).fill(Theme.backgroundSubtle))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.border))
+
+            Picker("Tipo", selection: $options.usePassphrase) {
                 Text("Caracteres").tag(false)
                 Text("Palabras").tag(true)
             }
@@ -432,20 +449,17 @@ struct GeneratorView: View {
             .labelsHidden()
 
             if options.usePassphrase {
-                HStack {
-                    Text("Palabras").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
-                    Spacer()
-                    Text("\(options.wordCount)").font(.mono(12, .medium))
+                stepperRow("Palabras", value: options.wordCount) {
+                    Slider(value: Binding(get: { Double(options.wordCount) }, set: { options.wordCount = Int($0.rounded()) }), in: 3...10, step: 1)
+                        .accessibilityLabel("Número de palabras")
+                        .accessibilityValue("\(options.wordCount)")
                 }
-                Slider(value: Binding(get: { Double(options.wordCount) }, set: { options.wordCount = Int($0.rounded()) }), in: 3...10, step: 1)
-                    .accessibilityLabel("Número de palabras")
-                    .accessibilityValue("\(options.wordCount)")
-                    .controlSize(.small)
                 HStack(spacing: 6) {
                     Text("Separador").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
                     Spacer()
                     ForEach(["-", ".", "_", " "], id: \.self) { sep in
-                        chip(sep == " " ? "␣" : sep, Binding(get: { options.separator == sep }, set: { if $0 { options.separator = sep } }))
+                        chip(sep == " " ? "␣" : sep, help: sep == " " ? "Espacio" : sep,
+                             Binding(get: { options.separator == sep }, set: { if $0 { options.separator = sep } }))
                             .frame(width: 34)
                     }
                 }
@@ -455,57 +469,85 @@ struct GeneratorView: View {
                 }
                 .toggleStyle(.checkbox).font(.ui(12))
             } else {
-                HStack {
-                    Text("Longitud").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
-                    Spacer()
-                    Text("\(options.length)").font(.mono(12, .medium))
+                stepperRow("Longitud", value: options.length) {
+                    Slider(value: Binding(get: { Double(options.length) }, set: { options.length = Int($0.rounded()) }), in: 8...64)
+                        .accessibilityLabel("Longitud")
+                        .accessibilityValue("\(options.length) caracteres")
                 }
-                Slider(value: Binding(get: { Double(options.length) }, set: { options.length = Int($0.rounded()) }), in: 8...64)
-                    .accessibilityLabel("Longitud")
-                    .accessibilityValue("\(options.length) caracteres")
-                    .controlSize(.small)
-
                 HStack(spacing: 6) {
-                    chip("ABC", $options.uppercase)
-                    chip("abc", $options.lowercase)
-                    chip("123", $options.digits)
-                    chip("#$&", $options.symbols)
+                    chip("ABC", help: "Mayúsculas", $options.uppercase)
+                    chip("abc", help: "Minúsculas", $options.lowercase)
+                    chip("123", help: "Números", $options.digits)
+                    chip("#$&", help: "Símbolos", $options.symbols)
                 }
                 Toggle("Evitar caracteres que se confunden (l, 1, O, 0)", isOn: $options.avoidAmbiguous)
                     .toggleStyle(.checkbox).font(.ui(12))
             }
 
-            HStack {
-                Button("Copiar") { model.copy(password, label: "Contraseña", markUsed: false) }
-                    .buttonStyle(GButtonStyle(kind: .secondary, compact: true))
-                Spacer()
-                if let onUse {
+            if let onUse {
+                HStack {
+                    Spacer()
                     Button("Usar esta") { onUse(password) }
                         .buttonStyle(GButtonStyle(kind: .primary, compact: true))
+                        .keyboardShortcut(.defaultAction)
                 }
             }
         }
         .padding(16)
         .background(Theme.background)
         .onAppear(perform: regenerate)
+        .onDisappear { copiedTask?.cancel() }
         .onChange(of: options) { _, new in
             Preferences.generator = new
             regenerate()
         }
     }
 
-    private func regenerate() { password = PasswordGenerator.generate(options) }
+    /// Etiqueta, control y valor en una sola fila.
+    private func stepperRow<Control: View>(_ label: String, value: Int, @ViewBuilder control: () -> Control) -> some View {
+        HStack(spacing: 12) {
+            Text(label).font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
+            control().controlSize(.small)
+            Text("\(value)").font(.mono(12, .medium)).frame(minWidth: 22, alignment: .trailing)
+        }
+    }
 
-    private func chip(_ label: String, _ isOn: Binding<Bool>) -> some View {
+    private func copy() {
+        model.copy(password, label: "Contraseña", markUsed: false)
+        copiedTask?.cancel()
+        withAnimation(.easeOut(duration: 0.12)) { copied = true }
+        copiedTask = Task {
+            try? await Task.sleep(for: .seconds(1.4))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.2)) { copied = false }
+        }
+    }
+
+    private func regenerate() {
+        password = PasswordGenerator.generate(options)
+        copiedTask?.cancel()
+        copied = false
+    }
+
+    /// Interruptor de un tipo de carácter: activo con fondo suave y marca; apagado, solo el borde.
+    private func chip(_ label: String, help: String, _ isOn: Binding<Bool>) -> some View {
         Button { isOn.wrappedValue.toggle() } label: {
-            Text(label)
-                .font(.mono(12, .medium))
-                .foregroundStyle(isOn.wrappedValue ? Theme.onPrimary : Theme.textSecondary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 28)
-                .background(RoundedRectangle(cornerRadius: Theme.radius).fill(isOn.wrappedValue ? Theme.primary : Theme.background))
-                .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(isOn.wrappedValue ? .clear : Theme.border))
+            HStack(spacing: 4) {
+                if isOn.wrappedValue {
+                    Image(systemName: "checkmark").font(.system(size: 9, weight: .bold))
+                }
+                Text(label).font(.mono(12, .medium))
+            }
+            .foregroundStyle(isOn.wrappedValue ? Theme.text : Theme.textTertiary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+            .background(RoundedRectangle(cornerRadius: Theme.radius).fill(isOn.wrappedValue ? Theme.selected : Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(isOn.wrappedValue ? Theme.borderStrong : Theme.border))
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
+        .accessibilityAddTraits(isOn.wrappedValue ? .isSelected : [])
     }
 }

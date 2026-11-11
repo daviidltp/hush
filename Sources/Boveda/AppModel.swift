@@ -58,6 +58,18 @@ struct Preferences {
         set { defaults.set(newValue, forKey: "clipboardSeconds") }
     }
 
+    /// Lo que tardó en descifrarse cada base la última vez (segundos), para la barra de progreso al desbloquear.
+    /// El archivo no guarda el «tiempo de descifrado» elegido, pero lo medido coincide con él.
+    static func unlockSeconds(for url: URL) -> Double? {
+        (defaults.dictionary(forKey: "unlockSeconds") as? [String: Double])?[url.standardizedFileURL.path]
+    }
+
+    static func setUnlockSeconds(_ seconds: Double, for url: URL) {
+        var all = defaults.dictionary(forKey: "unlockSeconds") as? [String: Double] ?? [:]
+        all[url.standardizedFileURL.path] = seconds
+        defaults.set(all, forKey: "unlockSeconds")
+    }
+
     static var touchIDEnabled: Bool {
         get { defaults.object(forKey: "touchIDEnabled") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "touchIDEnabled") }
@@ -213,6 +225,41 @@ final class AppModel {
     var saveState: SaveState = .saved
     var busy = false
     var unlockError: String?
+    /// Descifrado en curso: la barra sube hasta el 99 % en el tiempo esperado y llega al 100 % al abrir.
+    var unlockProgress: UnlockProgress?
+    /// Se está esperando la huella (en la ventana o desde la barra de menús).
+    var touchIDPending = false
+
+    struct UnlockProgress: Equatable {
+        let start: Date
+        let expected: TimeInterval
+        var done = false
+
+        func fraction(at date: Date) -> Double {
+            if done { return 1 }
+            let t = min(max(date.timeIntervalSince(start) / max(expected, 0.3), 0), 1)
+            // Arranca rápido y frena al final, sin pasar del 99 % hasta que de verdad ha abierto.
+            return min(1 - pow(1 - t, 1.6), 0.99)
+        }
+    }
+
+    /// Cómo empieza la pantalla de desbloqueo. Solo se pide la huella si lo has pedido tú (elegir una base,
+    /// cambiar a ella o «Desbloquear» en la barra de menús); tras un bloqueo espera a que pulses Desbloquear.
+    enum UnlockStart { case wait, touchID, password }
+    @ObservationIgnored private var pendingUnlock = UnlockStart.wait
+    /// Sube con cada petición, para que una pantalla de desbloqueo ya visible la atienda.
+    private(set) var unlockRequestID = 0
+
+    func requestUnlock(_ start: UnlockStart) {
+        pendingUnlock = start
+        unlockRequestID += 1
+    }
+
+    /// La pantalla de desbloqueo recoge la petición una sola vez (al volver a abrir la ventana no se repite).
+    func takeUnlockRequest() -> UnlockStart {
+        defer { pendingUnlock = .wait }
+        return pendingUnlock
+    }
     var alert: AlertMessage?
     var editing: EntryDraft?
     var toast: String?
@@ -280,7 +327,8 @@ final class AppModel {
 
     /// Cambia a otra base: si ya está desbloqueada se muestra al momento; si no, se pide la contraseña.
     func switchTo(_ url: URL) {
-        guard url != vault?.url else { return }
+        // Mientras se descifra una base no se cambia a otra: su barra y su huella se mezclarían.
+        guard url != vault?.url, !busy else { return }
         Task {
             await flushSaves()
             parkActive()
@@ -290,6 +338,7 @@ final class AppModel {
                     activate(session)
                     checkDisk()
                 } else {
+                    requestUnlock(.touchID)
                     phase = .locked(url)
                 }
             }
@@ -383,8 +432,32 @@ final class AppModel {
     }
 
     func choose(_ url: URL) {
+        guard !busy else { return }
         unlockError = nil
+        requestUnlock(.touchID)
         phase = .locked(url)
+    }
+
+    /// «Desbloquear» en la barra de menús: con Touch ID pide la huella sin abrir la ventana. Si no hay huella
+    /// guardada, se cancela o falla, abre la ventana con la contraseña. Devuelve true si ha desbloqueado.
+    func unlockFromMenuBar() async -> Bool {
+        guard let url = lockedURL ?? Preferences.lastOpened ?? recents.first,
+              FileManager.default.fileExists(atPath: url.path) else {
+            showMainWindow()
+            return false
+        }
+        if lockedURL != url {
+            unlockError = nil
+            phase = .locked(url)
+        }
+        if canUseTouchID(for: url), QuickUnlock.isAvailable, !touchIDPending, await unlockWithTouchID(url: url) {
+            return true
+        }
+        // Si mientras tanto cambiaste de base o ya está abriéndose, no se toca nada.
+        guard lockedURL == url, !busy else { return false }
+        requestUnlock(.password)
+        showMainWindow()
+        return false
     }
 
     func showWelcome() {
@@ -422,7 +495,7 @@ final class AppModel {
         unlockError = nil
         let generation = unlockGeneration
         busy = true
-        defer { busy = false }
+        defer { busy = false; unlockProgress = nil }
         // Si al bloquear quedó un guardado a medias, esperamos a que termine antes de leer el archivo.
         await flushSaves()
         do {
@@ -433,15 +506,38 @@ final class AppModel {
             } else {
                 unlock = UnlockData(masterPassword: password)
             }
-            let opened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: url, unlock: unlock) }.value
+            let opened = try await openTimed(url: url, unlock: unlock)
             guard generation == unlockGeneration, lockedURL == url else { return }
             if Preferences.touchIDEnabled, QuickUnlock.isAvailable {
                 try? QuickUnlock.enroll(unlock, for: url)
             }
+            await finishProgress()
+            guard generation == unlockGeneration, lockedURL == url else { return }
             didOpen(opened)
         } catch {
             unlockError = error.localizedDescription
         }
+    }
+
+    /// Abre la base midiendo cuánto tarda en descifrarse, con la barra de progreso en marcha.
+    private func openTimed(url: URL, unlock: UnlockData) async throws -> Vault {
+        let start = Date()
+        unlockProgress = UnlockProgress(start: start, expected: Preferences.unlockSeconds(for: url) ?? 2)
+        do {
+            let opened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: url, unlock: unlock) }.value
+            Preferences.setUnlockSeconds(Date().timeIntervalSince(start), for: url)
+            return opened
+        } catch {
+            unlockProgress = nil
+            throw error
+        }
+    }
+
+    /// Lleva la barra al 100 % y deja verlo un instante antes de entrar.
+    private func finishProgress() async {
+        guard unlockProgress != nil else { return }
+        unlockProgress?.done = true
+        try? await Task.sleep(for: .milliseconds(220))
     }
 
     /// Devuelve true si ha desbloqueado; false si se canceló o falló (entonces toca la contraseña).
@@ -450,12 +546,19 @@ final class AppModel {
         unlockError = nil
         let generation = unlockGeneration
         do {
-            let unlock = try await QuickUnlock.unlock(url, reason: "desbloquear \(url.deletingPathExtension().lastPathComponent)")
+            touchIDPending = true
+            let unlock: UnlockData
+            do {
+                defer { touchIDPending = false }
+                unlock = try await QuickUnlock.unlock(url, reason: "desbloquear \(url.deletingPathExtension().lastPathComponent)")
+            }
             busy = true
-            defer { busy = false }
+            defer { busy = false; unlockProgress = nil }
             await flushSaves()
             guard generation == unlockGeneration, lockedURL == url else { return false }
-            let opened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: url, unlock: unlock) }.value
+            let opened = try await openTimed(url: url, unlock: unlock)
+            guard generation == unlockGeneration, lockedURL == url else { return false }
+            await finishProgress()
             guard generation == unlockGeneration, lockedURL == url else { return false }
             didOpen(opened)
             return true
@@ -485,6 +588,7 @@ final class AppModel {
     }
 
     private func didOpen(_ opened: Vault) {
+        unlockProgress = nil
         parkActive()
         sessions.removeValue(forKey: opened.url)
         remember(opened.url)
@@ -499,6 +603,7 @@ final class AppModel {
         guard let url = vault?.url else { unlockGeneration += 1; return true }
         guard rescueUnsaved([url]) || force else { return false }
         unlockGeneration += 1
+        pendingUnlock = .wait  // Tras bloquear no se pide la huella sola: solo al pulsar Desbloquear.
         editing = nil
         sheet = nil
         // La clave y los datos se borran de memoria al soltar la última referencia.
