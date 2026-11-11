@@ -120,7 +120,7 @@ struct UnlockView: View {
     @FocusState private var focused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shake = false
-    /// Con Touch ID, primero se espera a la huella; la contraseña aparece si se cancela, falla o se pide.
+    /// Con Touch ID se muestra primero la huella; la contraseña aparece si se cancela, falla o se pide.
     @State private var usePassword = false
     private var waitingForTouchID: Bool { touchID && !usePassword }
 
@@ -141,14 +141,19 @@ struct UnlockView: View {
                     passwordField
                         .offset(x: shake ? -8 : 0)
 
-                    // Hueco fijo para el error: al aparecer no mueve el campo que estás corrigiendo.
-                    Text(model.unlockError ?? " ")
-                        .font(.ui(12))
-                        .foregroundStyle(Theme.red)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(2, reservesSpace: true)
-                        .opacity(model.unlockError == nil ? 0 : 1)
-                        .animation(.easeOut(duration: 0.15), value: model.unlockError)
+                    // Hueco fijo para el error o la barra: al aparecer no mueven el campo que estás corrigiendo.
+                    ZStack {
+                        Text(model.unlockError ?? " ")
+                            .font(.ui(12))
+                            .foregroundStyle(Theme.red)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2, reservesSpace: true)
+                            .opacity(model.unlockError == nil || model.unlockProgress != nil ? 0 : 1)
+                            .animation(.easeOut(duration: 0.15), value: model.unlockError)
+                        if let progress = model.unlockProgress {
+                            UnlockProgressBar(progress: progress).padding(.horizontal, 22)
+                        }
+                    }
 
                     if let keyFile {
                         HStack(spacing: 6) {
@@ -168,7 +173,7 @@ struct UnlockView: View {
                         }
                         .buttonStyle(GButtonStyle(kind: .ghost, compact: true))
                         .foregroundStyle(Theme.textSecondary)
-                        .disabled(model.busy)
+                        .disabled(model.busy || model.touchIDPending)
                     }
                 }
                 .transition(.opacity)
@@ -220,9 +225,10 @@ struct UnlockView: View {
                 return
             }
             #endif
-            // Si el lector no está listo, se enseña la contraseña con el botón de Touch ID a mano.
-            if touchID { QuickUnlock.isAvailable ? askForFingerprint() : showPassword() }
+            start(model.takeUnlockRequest())
         }
+        // «Desbloquear» en la barra de menús con la ventana ya abierta (p. ej. la huella falló allí).
+        .onChange(of: model.unlockRequestID) { _, _ in start(model.takeUnlockRequest()) }
         .onChange(of: model.unlockError) { _, error in
             // No borramos lo escrito: así se puede corregir un carácter sin reescribir la contraseña entera.
             guard error != nil, !reduceMotion else { return }
@@ -278,31 +284,69 @@ struct UnlockView: View {
         }
     }
 
-    /// Mientras se espera la huella: sin campo de contraseña, solo el aviso y la salida a la contraseña.
+    /// Con Touch ID: el botón para pedir la huella (↩) y la salida a la contraseña. Mientras se descifra,
+    /// la barra de progreso ocupa el sitio del botón.
     private var touchIDPrompt: some View {
         VStack(spacing: 14) {
-            Image(systemName: "touchid")
-                .font(.system(size: 34, weight: .light))
-                .foregroundStyle(Theme.textSecondary)
-                .frame(width: 64, height: 64)
-                .background(Circle().fill(Theme.fill))
-            Text(model.busy ? "Abriendo…" : "Pon el dedo en Touch ID")
-                .font(.ui(14))
-                .foregroundStyle(Theme.textSecondary)
+            Button { askForFingerprint() } label: {
+                Image(systemName: "touchid")
+                    .font(.system(size: 34, weight: .light))
+                    .foregroundStyle(model.touchIDPending ? Theme.text : Theme.textSecondary)
+                    .frame(width: 64, height: 64)
+                    .background(Circle().fill(Theme.fill))
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .disabled(model.busy || model.touchIDPending)
+            .accessibilityLabel("Desbloquear con Touch ID")
+
+            Group {
+                if let progress = model.unlockProgress {
+                    UnlockProgressBar(progress: progress)
+                } else if model.touchIDPending {
+                    Text("Pon el dedo en Touch ID")
+                        .font(.ui(14))
+                        .foregroundStyle(Theme.textSecondary)
+                } else {
+                    Button { askForFingerprint() } label: {
+                        Label("Desbloquear con Touch ID", systemImage: "touchid")
+                    }
+                    .buttonStyle(GButtonStyle(kind: .primary))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(model.busy)
+                }
+            }
+            .frame(width: 280, height: 34)
+
             Button("Usar contraseña") { showPassword() }
                 .buttonStyle(GButtonStyle(kind: .ghost, compact: true))
                 .foregroundStyle(Theme.textSecondary)
                 .keyboardShortcut(.cancelAction)
                 .disabled(model.busy)
+                .opacity(model.unlockProgress == nil ? 1 : 0)
         }
-        .frame(height: 140)
+        .frame(height: 160)
         .transition(.opacity)
         .accessibilityElement(children: .contain)
     }
 
+    /// Atiende lo que se pidió al abrir esta pantalla: la huella, la contraseña o nada (tras un bloqueo).
+    private func start(_ request: AppModel.UnlockStart) {
+        switch request {
+        case .wait: break
+        case .password: showPassword()
+        case .touchID:
+            guard touchID else { return }
+            // Si el lector no está listo, se enseña la contraseña con el botón de Touch ID a mano.
+            QuickUnlock.isAvailable ? askForFingerprint() : showPassword()
+        }
+    }
+
     private func askForFingerprint() {
+        guard !model.touchIDPending, !model.busy else { return }
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { usePassword = false }
         Task {
-            if await model.unlockWithTouchID(url: url) == false { showPassword() }
+            if await model.unlockWithTouchID(url: url) == false, model.lockedURL == url { showPassword() }
         }
     }
 
@@ -339,13 +383,9 @@ struct UnlockView: View {
             Button(action: submit) {
                 ZStack {
                     Circle().fill(canSubmit ? Theme.primary : Theme.selected)
-                    if model.busy {
-                        ProgressView().controlSize(.small).tint(Theme.text)
-                    } else {
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(canSubmit ? Theme.onPrimary : Theme.textTertiary)
-                    }
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(canSubmit ? Theme.onPrimary : Theme.textTertiary)
                 }
                 .frame(width: 40, height: 40)
             }
@@ -463,5 +503,37 @@ struct StrengthBar: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: fraction)
+    }
+}
+
+/// Barra de desbloqueo: sube hasta el 99 % en lo que tardó la base la última vez y llega al 100 % al abrir.
+struct UnlockProgressBar: View {
+    let progress: AppModel.UnlockProgress
+    var showsLabel = true
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: progress.done)) { context in
+            let fraction = progress.fraction(at: context.date)
+            VStack(spacing: 6) {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Theme.selected)
+                        Capsule().fill(Theme.primary).frame(width: geo.size.width * fraction)
+                    }
+                }
+                .frame(height: showsLabel ? 4 : 3)
+                if showsLabel { HStack {
+                    Text(progress.done ? "Abriendo…" : "Descifrando…")
+                    Spacer()
+                    Text("\(Int((fraction * 100).rounded(.down))) %").monospacedDigit()
+                }
+                .font(.ui(11, .medium))
+                .foregroundStyle(Theme.textTertiary) }
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Descifrando")
+            .accessibilityValue("\(Int(fraction * 100)) %")
+        }
+        .animation(.easeOut(duration: 0.18), value: progress.done)
     }
 }

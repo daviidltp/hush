@@ -227,9 +227,29 @@ struct QuickSearchView: View {
             Image(systemName: "lock").font(.system(size: 22)).foregroundStyle(Theme.textTertiary)
             Text("Hush está bloqueada").font(.ui(15, .semibold))
             Text("Desbloquéala para buscar tus contraseñas.").font(.ui(13)).foregroundStyle(Theme.textSecondary)
-            Button("Abrir Hush") { close(); model.showMainWindow() }
-                .buttonStyle(GButtonStyle(kind: .primary, compact: true))
-                .keyboardShortcut(.defaultAction)
+            // Con Touch ID pide la huella aquí mismo; si no se puede, abre la ventana con la contraseña.
+            Group {
+                if let progress = model.unlockProgress {
+                    UnlockProgressBar(progress: progress).frame(width: 220)
+                } else {
+                    Button {
+                        Task { if await model.unlockFromMenuBar() == false { close() } }
+                    } label: {
+                        if model.touchIDPending {
+                            Text("Pon el dedo en Touch ID")
+                        } else if let url = model.lockedURL ?? Preferences.lastOpened ?? model.recents.first,
+                                  model.canUseTouchID(for: url) {
+                            Label("Desbloquear con Touch ID", systemImage: "touchid")
+                        } else {
+                            Text("Desbloquear")
+                        }
+                    }
+                    .buttonStyle(GButtonStyle(kind: .primary, compact: true))
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(model.touchIDPending || model.busy)
+                }
+            }
+            .frame(height: 34)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(24)
@@ -514,7 +534,7 @@ struct MenuBarContent: View {
                 case .vault:
                     QuickSearchView(compact: true) { dismiss() }
                 case .generator:
-                    ScrollView { GeneratorView(onUse: nil) }
+                    ScrollView { GeneratorView(onUse: nil, showsTitle: false) }
                 }
             }
             .frame(height: 400)
@@ -553,14 +573,34 @@ struct MenuBarContent: View {
                 .buttonStyle(.plain)
                 .menuIndicator(.hidden)
                 .fixedSize()
-            } else {
-                Button("Desbloquear") { dismiss(); model.showMainWindow() }
-                    .buttonStyle(GButtonStyle(kind: .primary, compact: true))
+            } else if tab == .vault, let url = model.lockedURL, !model.openVaults.isEmpty {
+                // La base que ves está bloqueada pero otra sigue abierta (el buscador enseña la abierta):
+                // desde aquí se desbloquea la bloqueada, con la huella y sin abrir la ventana.
+                Button {
+                    Task { if await model.unlockFromMenuBar() == false { dismiss() } }
+                } label: {
+                    if model.busy {
+                        Text("Abriendo…")
+                    } else if model.touchIDPending {
+                        Text("Pon el dedo…")
+                    } else if model.canUseTouchID(for: url) {
+                        Label("Desbloquear \(url.deletingPathExtension().lastPathComponent)", systemImage: "touchid")
+                    } else {
+                        Text("Desbloquear \(url.deletingPathExtension().lastPathComponent)")
+                    }
+                }
+                .buttonStyle(GButtonStyle(kind: .primary, compact: true))
+                .disabled(model.touchIDPending || model.busy)
             }
         }
         .padding(.horizontal, 16)
         .frame(height: 60)
         .background(Theme.background)
+        .overlay(alignment: .bottom) {
+            if let progress = model.unlockProgress, !model.openVaults.isEmpty {
+                UnlockProgressBar(progress: progress, showsLabel: false)
+            }
+        }
     }
 
     private var tabBar: some View {

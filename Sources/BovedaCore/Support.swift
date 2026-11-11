@@ -182,8 +182,10 @@ public enum PasswordStrength: Int, Comparable {
         return effective * log2(Double(max(pool, 2)))
     }
 
-    public static func of(_ password: String) -> PasswordStrength {
-        switch bits(password) {
+    public static func of(_ password: String) -> PasswordStrength { of(bits: bits(password)) }
+
+    public static func of(bits: Double) -> PasswordStrength {
+        switch bits {
         case ..<28: return .veryWeak
         case ..<45: return .weak
         case ..<64: return .fair
