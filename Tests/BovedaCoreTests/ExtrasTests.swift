@@ -4,7 +4,7 @@ import Testing
 @testable import BovedaCore
 
 @Suite struct ExtrasTests {
-    @Test func passphraseUsesSpanishWords() {
+    @Test func passphraseUsesWordlist() {
         var options = GeneratorOptions()
         options.usePassphrase = true
         options.wordCount = 4
@@ -14,7 +14,10 @@ import Testing
         let parts = phrase.split(separator: "-")
         #expect(parts.count == 5)
         #expect(SpanishWords.list.count == 8192)
-        #expect(parts.prefix(4).allSatisfy { SpanishWords.list.contains($0.lowercased()) && $0.first!.isUppercase })
+        #expect(EnglishWords.list.count == 7776)
+        // La lista depende del idioma de la app (español o la inglesa de la EFF).
+        let words = Set(PasswordGenerator.passphraseWords)
+        #expect(parts.prefix(4).allSatisfy { words.contains($0.lowercased()) && $0.first!.isUppercase })
         #expect(Int(parts.last!) != nil)
         #expect(PasswordGenerator.entropy(options) > 58)
     }

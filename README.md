@@ -6,7 +6,7 @@
 
 A native macOS password manager (Swift and SwiftUI) built on **KDBX** files, the open KeePass format. Your vault is an encrypted file you keep wherever you want (iCloud Drive, Dropbox, a USB stick) and can also open with other compatible apps on your Mac or phone. No accounts, no servers, no subscription.
 
-> **Beta.** I use it every day, but it has not had an external security audit. Back up your vault before trying it. The app UI is in Spanish.
+> **Beta.** I use it every day, but it has not had an external security audit. Back up your vault before trying it.
 
 ## Features
 
@@ -51,11 +51,16 @@ The extension is not in the Chrome or Firefox stores yet. Until then, any progra
 
 Found a security issue? See [SECURITY.md](SECURITY.md). Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Languages
+
+Hush follows your Mac’s language: English, Spanish, German, French, Italian and Portuguese (Brazil). Translations live in `Resources/i18n/<language>.json`; to add or fix one, see [CONTRIBUTING.md](CONTRIBUTING.md#translations).
+
 ## Credits
 
 - [KDBXKit](https://github.com/shadone/KDBXKit) (BSD 2-Clause), vendored in `Vendor/KDBXKit` with a date patch.
 - Argon2 (CC0 / Apache 2.0), included in KDBXKit.
 - [Public Suffix List](https://publicsuffix.org) (MPL 2.0), in `Sources/BovedaCore/PublicSuffixData.swift`.
+- [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US) for English passphrases, and the [diceware](https://github.com/ulif/diceware) Spanish list.
 
 ## License
 
