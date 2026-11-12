@@ -129,7 +129,7 @@ extension AppModel {
         var pasted: UUID?
         mutate { pasted = $0.paste(clip.package, into: group) }
         selectedEntryID = pasted
-        showToast("«\(clip.title)» pegada")
+        showToast(L("«\(clip.title)» pegada"))
     }
 }
 

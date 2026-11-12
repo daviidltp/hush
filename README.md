@@ -17,7 +17,9 @@ A native macOS password manager (Swift and SwiftUI) built on **KDBX** files, the
 - Audit: breached passwords (Have I Been Pwned with k-anonymity: only 5 characters of the hash leave your Mac), reused, similar and weak passwords, and sites that support 2FA.
 - Quick search with a global shortcut (⇧⌘Space) and a menu bar icon.
 - Browser autofill (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox and Zen).
+- Import from other apps: CSV or unencrypted JSON exports from Bitwarden, 1Password, Apple Passwords, Proton Pass, Chrome/Edge/Brave, Firefox and KeePass-compatible apps (plus any CSV with a header row). Folders, favorites, tags, 2FA and cards are kept; duplicates are skipped.
 - Export to CSV or .zip with attachments, with a warning that they are not encrypted.
+- Emergency kit: a printable PDF with everything needed to recover the vault and a blank space to write the master password by hand.
 
 ## Build
 

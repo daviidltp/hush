@@ -140,7 +140,9 @@ struct AppCommands: Commands {
                 .keyboardShortcut("w")
                 .disabled(!unlocked)
         }
-        CommandGroup(replacing: .saveItem) {
+        // En macOS 26 el hueco «.saveItem» no sale en apps sin documentos: estas opciones van detrás de las de «Nuevo».
+        CommandGroup(after: .newItem) {
+            Divider()
             Button("Guardar") { model.save() }
                 .keyboardShortcut("s")
                 .disabled(!unlocked)
@@ -148,6 +150,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(!unlocked)
             Divider()
+            Button("Importar contraseñas…") { model.importPasswords() }.disabled(!unlocked)
             Button("Exportar a CSV…") { model.export(withAttachments: false) }.disabled(!unlocked)
             Button("Exportar con adjuntos (.zip)…") { model.export(withAttachments: true) }.disabled(!unlocked)
         }
