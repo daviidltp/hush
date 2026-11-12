@@ -24,6 +24,17 @@ enum SortKey: String, CaseIterable {
     case modified = "Modificado"
     case created = "Creado"
     case passwordChanged = "Contraseña cambiada"
+
+    var label: String {
+        switch self {
+        case .title: L("Título")
+        case .userName: L("Usuario")
+        case .url: L("URL")
+        case .modified: L("Modificado")
+        case .created: L("Creado")
+        case .passwordChanged: L("Contraseña cambiada")
+        }
+    }
 }
 
 /// Dónde busca el buscador.
@@ -41,7 +52,7 @@ struct SearchOptions: Codable, Equatable {
 
 enum AppearanceMode: Int, CaseIterable {
     case system, light, dark
-    var label: String { ["Como el sistema", "Claro", "Oscuro"][rawValue] }
+    var label: String { [L("Como el sistema"), L("Claro"), L("Oscuro")][rawValue] }
 }
 
 /// Ajustes guardados en el Mac (no en la base de datos).
@@ -392,7 +403,7 @@ final class AppModel {
         Preferences.lastOpened = session.url
         sidebar = .all
         search = ""
-        saveState = unsavedURLs.contains(session.url) ? .failed("Sin guardar") : .saved
+        saveState = unsavedURLs.contains(session.url) ? .failed(L("Sin guardar")) : .saved
         lastActivity = Date()
         phase = .unlocked
         selectedEntryID = visibleEntries.first?.uuid
@@ -415,7 +426,7 @@ final class AppModel {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "kdbx") ?? .data]
         panel.allowsMultipleSelection = false
-        panel.message = "Elige un archivo .kdbx"
+        panel.message = L("Elige un archivo .kdbx")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         if !recents.contains(where: { $0.standardizedFileURL == url.standardizedFileURL }) {
             recents.append(url)
@@ -567,7 +578,7 @@ final class AppModel {
         } catch VaultError.wrongCredentials {
             // La contraseña maestra ha cambiado en otro dispositivo.
             QuickUnlock.forget(url)
-            unlockError = "La contraseña maestra ha cambiado. Escríbela para volver a activar Touch ID."
+            unlockError = L("La contraseña maestra ha cambiado. Escríbela para volver a activar Touch ID.")
         } catch {
             unlockError = error.localizedDescription
         }
@@ -583,7 +594,7 @@ final class AppModel {
             if Preferences.touchIDEnabled, QuickUnlock.isAvailable { try? QuickUnlock.enroll(unlock, for: url) }
             didOpen(vault)
         } catch {
-            alert = AlertMessage(title: "No se ha podido crear", message: error.localizedDescription)
+            alert = AlertMessage(title: L("No se ha podido crear"), message: error.localizedDescription)
         }
     }
 
@@ -724,20 +735,20 @@ final class AppModel {
 
     var sidebarTitle: String {
         switch sidebar {
-        case .all: return "Todas las entradas"
-        case .favorites: return "Favoritos"
-        case .twoFactor: return "Códigos 2FA"
-        case .passkeys: return "Claves de acceso"
-        case .attachments: return "Adjuntos"
-        case .audit(.pwned): return "Filtradas"
-        case .audit(.duplicates): return "Contraseñas repetidas"
-        case .audit(.similar): return "Contraseñas parecidas"
-        case .audit(.weak): return "Contraseñas débiles"
-        case .audit(.missing2FA): return "Sin 2FA"
-        case .audit(.all): return "Todos los problemas"
-        case .expired: return "Caducadas"
-        case .recycleBin: return "Papelera"
-        case let .group(id): return vault?.root.group(id)?.displayName ?? "Grupo"
+        case .all: return L("Todas las entradas")
+        case .favorites: return L("Favoritos")
+        case .twoFactor: return L("Códigos 2FA")
+        case .passkeys: return L("Claves de acceso")
+        case .attachments: return L("Adjuntos")
+        case .audit(.pwned): return L("Filtradas")
+        case .audit(.duplicates): return L("Contraseñas repetidas")
+        case .audit(.similar): return L("Contraseñas parecidas")
+        case .audit(.weak): return L("Contraseñas débiles")
+        case .audit(.missing2FA): return L("Sin 2FA")
+        case .audit(.all): return L("Todos los problemas")
+        case .expired: return L("Caducadas")
+        case .recycleBin: return L("Papelera")
+        case let .group(id): return vault?.root.group(id)?.displayName ?? L("Grupo")
         case let .tag(tag): return "#" + tag
         }
     }
@@ -782,28 +793,28 @@ final class AppModel {
     func auditGap(_ kind: AuditKind) -> (text: String, pending: Bool)? {
         guard vault != nil else { return nil }
         // Hasta el primer resultado de esta base, nada puede decir «sin problemas».
-        if auditFirstRunPending { return ("Comprobando…", true) }
+        if auditFirstRunPending { return (L("Comprobando…"), true) }
         let services = AuditServices.shared
         var breaches: (String, Bool)?
         if Preferences.checkBreaches, kind == .pwned || kind == .all {
             let status = services.status(for: auditPublished?.passwords ?? [])
             if status.failed > 0 {
-                breaches = ("No se han podido comprobar \(status.failed) contraseñas en las filtraciones. Revisa la conexión.", false)
+                breaches = (L("No se han podido comprobar \(status.failed) contraseñas en las filtraciones. Revisa la conexión."), false)
             } else if status.pending > 0 {
-                breaches = ("Comprobando filtraciones… (\(status.pending) pendientes)", true)
+                breaches = (L("Comprobando filtraciones… (\(status.pending) pendientes)"), true)
             }
         }
         var twoFactor: (String, Bool)?
         if Preferences.check2FA, kind == .missing2FA || kind == .all {
             switch services.twoFactorList {
             case .ready: break
-            case .failed: twoFactor = ("No se ha podido descargar la lista de webs con 2FA.", false)
-            case .loading, .notLoaded: twoFactor = ("Descargando la lista de webs con 2FA…", true)
+            case .failed: twoFactor = (L("No se ha podido descargar la lista de webs con 2FA."), false)
+            case .loading, .notLoaded: twoFactor = (L("Descargando la lista de webs con 2FA…"), true)
             }
         }
         var similar: (String, Bool)?
         if kind == .similar || kind == .all, audit.similarSkipped {
-            similar = ("Hay más de \(Audit.similarLimit) contraseñas distintas: no se buscan las parecidas.", false)
+            similar = (L("Hay más de \(Audit.similarLimit) contraseñas distintas: no se buscan las parecidas."), false)
         }
         guard let gap = breaches ?? twoFactor ?? similar else { return nil }
         return (gap.0, gap.1)
@@ -874,7 +885,7 @@ final class AppModel {
 
     func mutate(_ body: (inout Vault) -> Void) {
         guard !changingCredentials else {
-            showToast("Espera a que termine el cambio de contraseña")
+            showToast(L("Espera a que termine el cambio de contraseña"))
             return
         }
         guard var current = vault else { return }
@@ -968,11 +979,11 @@ final class AppModel {
         }
         let title: String, message: String
         if failed.isEmpty {
-            title = "Tus últimos cambios están en una copia aparte"
-            message = "No se pudieron escribir en el archivo original. Están cifrados con la misma contraseña en:\n\n" + written.joined(separator: "\n") + "\n\nÁbrela con «Abrir base de datos…» para recuperarlos."
+            title = L("Tus últimos cambios están en una copia aparte")
+            message = L("No se pudieron escribir en el archivo original. Están cifrados con la misma contraseña en:\n\n") + written.joined(separator: "\n") + L("\n\nÁbrela con «Abrir base de datos…» para recuperarlos.")
         } else {
-            title = "No se han podido poner a salvo tus últimos cambios"
-            message = (written.isEmpty ? "" : "Guardados aparte:\n" + written.joined(separator: "\n") + "\n\n") + "Sin guardar:\n" + failed.joined(separator: "\n") + "\n\nUsa «Guardar una copia como…» (⇧⌘S) antes de bloquear o salir."
+            title = L("No se han podido poner a salvo tus últimos cambios")
+            message = (written.isEmpty ? "" : L("Guardados aparte:\n") + written.joined(separator: "\n") + "\n\n") + L("Sin guardar:\n") + failed.joined(separator: "\n") + L("\n\nUsa «Guardar una copia como…» (⇧⌘S) antes de bloquear o salir.")
         }
         if modal {
             // Al salir no queda ventana donde enseñar el aviso: se muestra antes de cerrar.
@@ -1015,8 +1026,8 @@ final class AppModel {
                 unsavedURLs.insert(snapshot.url)
                 // Con la base ya bloqueada, el aviso útil es el del rescate (dónde está la copia), no «Recargar».
                 if rescueIfGone(latest) { return }
-                saveState = .failed("Cambiado en otro dispositivo")
-                alert = AlertMessage(title: "El archivo ha cambiado", message: VaultError.changedOnDisk.localizedDescription + "\n\nAl recargar se pierden los últimos cambios que has hecho aquí; tendrás que repetirlos.", reload: true)
+                saveState = .failed(L("Cambiado en otro dispositivo"))
+                alert = AlertMessage(title: L("El archivo ha cambiado"), message: VaultError.changedOnDisk.localizedDescription + L("\n\nAl recargar se pierden los últimos cambios que has hecho aquí; tendrás que repetirlos."), reload: true)
                 return
             } catch {
                 let latest = pendingSnapshot?.url == snapshot.url ? pendingSnapshot! : snapshot
@@ -1024,7 +1035,7 @@ final class AppModel {
                 unsavedURLs.insert(snapshot.url)
                 if rescueIfGone(latest) { return }
                 saveState = .failed(error.localizedDescription)
-                alert = AlertMessage(title: "No se ha guardado", message: error.localizedDescription)
+                alert = AlertMessage(title: L("No se ha guardado"), message: error.localizedDescription)
                 return
             }
         }
@@ -1044,13 +1055,13 @@ final class AppModel {
             unsavedURLs.remove(url)  // Recargar descarta a propósito lo que no se pudo guardar.
             saveState = .saved
             if let id = selectedEntryID, fresh.locate(id) == nil { selectedEntryID = nil }
-            showToast("Actualizado con los cambios de otro dispositivo")
+            showToast(L("Actualizado con los cambios de otro dispositivo"))
         } catch VaultError.wrongCredentials {
             lock()
-            unlockError = "La contraseña maestra ha cambiado en otro dispositivo."
+            unlockError = L("La contraseña maestra ha cambiado en otro dispositivo.")
             QuickUnlock.forget(url)
         } catch {
-            alert = AlertMessage(title: "No se ha podido recargar", message: error.localizedDescription)
+            alert = AlertMessage(title: L("No se ha podido recargar"), message: error.localizedDescription)
         }
     }
 
@@ -1062,8 +1073,8 @@ final class AppModel {
         guard !value.isEmpty else { return }
         Clipboard.copy(value, clearAfter: Preferences.clipboardSeconds)
         if markUsed { self.markUsed(entry ?? selectedEntryID) }
-        let suffix = Preferences.clipboardSeconds > 0 ? " · se borra en \(Preferences.clipboardSeconds) s" : ""
-        showToast("Copiado: \(label)\(suffix)")
+        let suffix = Preferences.clipboardSeconds > 0 ? L(" · se borra en \(Preferences.clipboardSeconds) s") : ""
+        showToast(L("Copiado: \(label)\(suffix)"))
     }
 
     /// Valor de un campo con las referencias ({REF:…}) ya resueltas.
@@ -1078,20 +1089,20 @@ final class AppModel {
     func copyPassword() {
         guard let entry = selectedEntry?.entry else { return }
         switch entry.kind {
-        case .login: copy(value(FieldKey.password, of: entry), label: "Contraseña")
-        case .card: copy(value(CardField.number, of: entry), label: "Número")
-        case .note: copy(entry.notes, label: "Nota")
+        case .login: copy(value(FieldKey.password, of: entry), label: L("Contraseña"))
+        case .card: copy(value(CardField.number, of: entry), label: L("Número"))
+        case .note: copy(entry.notes, label: L("Nota"))
         }
     }
 
     func copyUserName() {
         guard let entry = selectedEntry?.entry else { return }
-        copy(value(FieldKey.userName, of: entry), label: "Usuario")
+        copy(value(FieldKey.userName, of: entry), label: L("Usuario"))
     }
 
     func copyTOTP() {
         guard let entry = selectedEntry?.entry, let totp = TOTP.from(entry) else { return }
-        copy(totp.code(), label: "Código 2FA")
+        copy(totp.code(), label: L("Código 2FA"))
     }
 
     func openURL() {
@@ -1146,7 +1157,7 @@ final class AppModel {
     func delete(_ id: UUID) {
         if deletesPermanently(id) {
             let title = root?.allEntries().first { $0.uuid == id }?.title ?? ""
-            guard confirmPermanentDelete("¿Eliminar «\(title)» para siempre?", detail: "La entrada no irá a la papelera.") else { return }
+            guard confirmPermanentDelete(L("¿Eliminar «\(title)» para siempre?"), detail: L("La entrada no irá a la papelera.")) else { return }
         }
         let list = visibleEntries
         let index = list.firstIndex { $0.uuid == id }
@@ -1171,7 +1182,7 @@ final class AppModel {
     func deleteGroup(_ id: UUID) {
         if groupDeletesPermanently(id) {
             let name = root?.group(id)?.displayName ?? ""
-            guard confirmPermanentDelete("¿Eliminar el grupo «\(name)» para siempre?", detail: "El grupo y todo lo que contiene no irán a la papelera.") else { return }
+            guard confirmPermanentDelete(L("¿Eliminar el grupo «\(name)» para siempre?"), detail: L("El grupo y todo lo que contiene no irán a la papelera.")) else { return }
         }
         if sidebar == .group(id) { sidebar = .all }
         mutate { $0.deleteGroup(id) }
@@ -1181,17 +1192,17 @@ final class AppModel {
 
     /// Vaciar la papelera no se puede deshacer: se pide confirmación antes.
     func confirmEmptyRecycleBin() {
-        guard confirmPermanentDelete("¿Vaciar la papelera?", detail: "Las entradas de la papelera se eliminarán para siempre.") else { return }
+        guard confirmPermanentDelete(L("¿Vaciar la papelera?"), detail: L("Las entradas de la papelera se eliminarán para siempre.")) else { return }
         emptyRecycleBin()
     }
 
     func confirmPermanentDelete(_ title: String, detail: String) -> Bool {
         let alert = NSAlert()
         alert.messageText = title
-        alert.informativeText = detail + " No se puede deshacer."
+        alert.informativeText = detail + L(" No se puede deshacer.")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: "Eliminar para siempre")
-        alert.addButton(withTitle: "Cancelar")
+        alert.addButton(withTitle: L("Eliminar para siempre"))
+        alert.addButton(withTitle: L("Cancelar"))
         alert.buttons.first?.hasDestructiveAction = true
         return alert.runModal() == .alertFirstButtonReturn
     }
@@ -1199,7 +1210,7 @@ final class AppModel {
     /// Saca de la papelera una entrada o un grupo y lo devuelve a donde estaba.
     func restore(_ id: UUID) {
         mutate { $0.restoreFromRecycleBin(id) }
-        showToast("Restaurado")
+        showToast(L("Restaurado"))
     }
 
     func isGroupInRecycleBin(_ id: UUID) -> Bool { vault?.isGroupInRecycleBin(id) ?? false }
@@ -1207,8 +1218,8 @@ final class AppModel {
     /// Texto del botón de borrar según lo que va a pasar de verdad.
     func deleteTitle(for ids: [UUID]) -> String {
         let permanent = ids.filter(deletesPermanently).count
-        if ids.isEmpty || permanent == 0 { return "Mover a la papelera" }
-        return permanent == ids.count ? "Eliminar para siempre…" : "Borrar (\(ids.count - permanent) a la papelera, \(permanent) para siempre)…"
+        if ids.isEmpty || permanent == 0 { return L("Mover a la papelera") }
+        return permanent == ids.count ? L("Eliminar para siempre…") : L("Borrar (\(ids.count - permanent) a la papelera, \(permanent) para siempre)…")
     }
 
     /// Si borrar elimina del todo (ya está en la papelera o la base no usa papelera).
@@ -1233,7 +1244,7 @@ final class AppModel {
             let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
             if values?.isDirectory == true { continue }
             if let size = values?.fileSize, size > Self.attachmentLimit {
-                alert = AlertMessage(title: "Archivo demasiado grande", message: "\(url.lastPathComponent) ocupa más de 20 MB. Los adjuntos grandes hacen que la base tarde mucho en abrir y guardar.")
+                alert = AlertMessage(title: L("Archivo demasiado grande"), message: L("\(url.lastPathComponent) ocupa más de 20 MB. Los adjuntos grandes hacen que la base tarde mucho en abrir y guardar."))
                 continue
             }
             accepted.append(url)
@@ -1249,7 +1260,7 @@ final class AppModel {
             guard !added.isEmpty, vault?.url == targetVault, unlockGeneration == generation,
                   vault?.root.allEntries().contains(where: { $0.uuid == entryID }) == true else { return }
             mutate { vault in for (name, data) in added { vault.addAttachment(named: name, data: data, to: entryID) } }
-            showToast(added.count == 1 ? "Adjunto añadido" : "\(added.count) adjuntos añadidos")
+            showToast(added.count == 1 ? L("Adjunto añadido") : L("\(added.count) adjuntos añadidos"))
         }
     }
 
@@ -1257,7 +1268,7 @@ final class AppModel {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.message = "Elige los archivos que quieres adjuntar"
+        panel.message = L("Elige los archivos que quieres adjuntar")
         guard panel.runModal() == .OK else { return }
         addAttachments(panel.urls, to: entryID)
     }
@@ -1278,7 +1289,7 @@ final class AppModel {
         panel.nameFieldStringValue = name
         guard panel.runModal() == .OK, let url = panel.url else { return }
         do { try data.write(to: url, options: .atomic) } catch {
-            alert = AlertMessage(title: "No se ha podido guardar", message: error.localizedDescription)
+            alert = AlertMessage(title: L("No se ha podido guardar"), message: error.localizedDescription)
         }
     }
 
@@ -1292,7 +1303,7 @@ final class AppModel {
             try data.write(to: file, options: .atomic)
             NSWorkspace.shared.open(file)
         } catch {
-            alert = AlertMessage(title: "No se ha podido abrir", message: error.localizedDescription)
+            alert = AlertMessage(title: L("No se ha podido abrir"), message: error.localizedDescription)
         }
     }
 
@@ -1302,7 +1313,7 @@ final class AppModel {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "kdbx") ?? .data]
         panel.allowsMultipleSelection = false
-        panel.message = "Elige tu archivo .kdbx"
+        panel.message = L("Elige tu archivo .kdbx")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         if !recents.contains(where: { $0.standardizedFileURL == url.standardizedFileURL }) {
             recents.append(url)
@@ -1318,7 +1329,7 @@ final class AppModel {
         panel.nameFieldStringValue = vault.url.deletingPathExtension().lastPathComponent + " (copia).kdbx"
         guard panel.runModal() == .OK, let url = panel.url else { return }
         guard url.standardizedFileURL != vault.url.standardizedFileURL else {
-            alert = AlertMessage(title: "Elige otro nombre", message: "La copia no puede reemplazar la base de datos abierta.")
+            alert = AlertMessage(title: L("Elige otro nombre"), message: L("La copia no puede reemplazar la base de datos abierta."))
             return
         }
         Task { await saveCopy(to: url) }
@@ -1328,14 +1339,14 @@ final class AppModel {
 
     func copyURL() {
         guard let entry = selectedEntry?.entry else { return }
-        copy(value(FieldKey.url, of: entry), label: "Web")
+        copy(value(FieldKey.url, of: entry), label: L("Web"))
     }
 
     /// ⌘Y: contraseña seguida del código 2FA, como KeePassXC.
     func copyPasswordAndTOTP() {
         guard let entry = selectedEntry?.entry else { return }
         guard let totp = TOTP.from(entry) else { copyPassword(); return }
-        copy(value(FieldKey.password, of: entry) + totp.code(), label: "Contraseña y 2FA")
+        copy(value(FieldKey.password, of: entry) + totp.code(), label: L("Contraseña y 2FA"))
     }
 
     func showTOTP() {
@@ -1382,9 +1393,9 @@ final class AppModel {
                 let bytes = try snapshot.serialized()
                 try bytes.write(to: url, options: [.atomic])
             }.value
-            showToast("Copia guardada en \(url.lastPathComponent)")
+            showToast(L("Copia guardada en \(url.lastPathComponent)"))
         } catch {
-            alert = AlertMessage(title: "No se ha podido guardar la copia", message: error.localizedDescription)
+            alert = AlertMessage(title: L("No se ha podido guardar la copia"), message: error.localizedDescription)
         }
     }
 
@@ -1418,10 +1429,10 @@ final class AppModel {
             revision += 1
             saveState = .saved
             if Preferences.touchIDEnabled, QuickUnlock.isAvailable { try? QuickUnlock.enroll(newUnlock, for: saved.url) }
-            showToast("Contraseña maestra cambiada")
+            showToast(L("Contraseña maestra cambiada"))
             return true
         } catch {
-            alert = AlertMessage(title: "No se ha cambiado la contraseña", message: error.localizedDescription)
+            alert = AlertMessage(title: L("No se ha cambiado la contraseña"), message: error.localizedDescription)
             return false
         }
     }

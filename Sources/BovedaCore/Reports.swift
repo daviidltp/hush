@@ -21,16 +21,16 @@ public struct PasswordReport {
         for entry in entries where !entry.excludedFromAudit && entry.kind == .login {
             let password = entry.string(FieldKey.password)
             if password.isEmpty {
-                empty.append(Item(entry: entry, detail: "Sin contraseña"))
+                empty.append(Item(entry: entry, detail: L("Sin contraseña")))
             } else {
                 byPassword[password, default: []].append(entry)
                 let strength = PasswordStrength.of(password)
                 if strength < .fair { weak.append(Item(entry: entry, detail: strength.label)) }
             }
-            if entry.isExpired { expired.append(Item(entry: entry, detail: "Caducada")) }
+            if entry.isExpired { expired.append(Item(entry: entry, detail: L("Caducada"))) }
         }
         for (_, group) in byPassword where group.count > 1 {
-            for entry in group { reused.append(Item(entry: entry, detail: "Repetida en \(group.count) entradas")) }
+            for entry in group { reused.append(Item(entry: entry, detail: L("Repetida en \(group.count) entradas"))) }
         }
         reused.sort { $0.entry.title.localizedStandardCompare($1.entry.title) == .orderedAscending }
     }
@@ -131,15 +131,15 @@ public struct Audit: @unchecked Sendable {
     public func issues(for id: UUID) -> [String] {
         var list: [String] = []
         if let count = pwned[id] {
-            list.append("Ha aparecido en filtraciones \(count.formatted(.number.locale(Locale(identifier: "es_ES")))) veces: cámbiala")
+            list.append(L("Ha aparecido en filtraciones \(count.formatted(.number.locale(appLocale))) veces: cámbiala"))
         }
-        if let count = duplicates[id] { list.append("Contraseña repetida en \(count) entradas") }
-        if let count = similar[id] { list.append(count == 1 ? "Contraseña parecida a la de otra entrada" : "Contraseña parecida a la de otras \(count) entradas") }
-        if common.contains(id) { list.append("Es una de las contraseñas más usadas") }
-        if let strength = weak[id] { list.append("Contraseña \(strength.label.lowercased())") }
-        if short.contains(id) { list.append("Contraseña corta: menos de \(Self.minimumLength) caracteres") }
-        if expired.contains(id) { list.append("Caducada") }
-        if missing2FA.contains(id) { list.append("Esta web permite 2FA y esta entrada no guarda ningún código") }
+        if let count = duplicates[id] { list.append(L("Contraseña repetida en \(count) entradas")) }
+        if let count = similar[id] { list.append(count == 1 ? L("Contraseña parecida a la de otra entrada") : L("Contraseña parecida a la de otras \(count) entradas")) }
+        if common.contains(id) { list.append(L("Es una de las contraseñas más usadas")) }
+        if let strength = weak[id] { list.append(L("Contraseña \(strength.label.lowercased())")) }
+        if short.contains(id) { list.append(L("Contraseña corta: menos de \(Self.minimumLength) caracteres")) }
+        if expired.contains(id) { list.append(L("Caducada")) }
+        if missing2FA.contains(id) { list.append(L("Esta web permite 2FA y esta entrada no guarda ningún código")) }
         return list
     }
 }

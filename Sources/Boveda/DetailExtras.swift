@@ -16,9 +16,9 @@ struct CardDetail: View {
         VStack(alignment: .leading, spacing: 16) {
             CardArt(holder: field(CardField.holder), number: field(CardField.number), expiry: field(CardField.expiry), title: entry.title)
             VStack(spacing: 0) {
-                PasswordRow(password: field(CardField.number), label: "Número", showStrength: false)
-                FieldRow(label: "Titular", value: field(CardField.holder), copyLabel: "Titular")
-                FieldRow(label: "Caducidad", value: field(CardField.expiry), copyLabel: "Caducidad")
+                PasswordRow(password: field(CardField.number), label: L("Número"), showStrength: false)
+                FieldRow(label: L("Titular"), value: field(CardField.holder), copyLabel: L("Titular"))
+                FieldRow(label: L("Caducidad"), value: field(CardField.expiry), copyLabel: L("Caducidad"))
                 PasswordRow(password: field(CardField.cvv), label: "CVV", showStrength: false)
                 if !field(CardField.pin).isEmpty { PasswordRow(password: field(CardField.pin), label: "PIN", showStrength: false) }
             }
@@ -45,7 +45,7 @@ struct CardArt: View {
         let digits = number.filter(\.isNumber)
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text(title.isEmpty ? "Tarjeta" : title).font(.ui(13, .semibold))
+                Text(title.isEmpty ? L("Tarjeta") : title).font(.ui(13, .semibold))
                 Spacer()
                 Text(brand).font(.system(size: 13, weight: .heavy, design: .rounded)).italic()
             }
@@ -209,7 +209,7 @@ struct PopOutButton: View {
     let entryID: UUID
 
     var body: some View {
-        IconButton(symbol: "macwindow.on.rectangle", help: "Abrir en otra ventana (⌥⌘O)") {
+        IconButton(symbol: "macwindow.on.rectangle", help: L("Abrir en otra ventana (⌥⌘O)")) {
             guard let url = model.vault?.url else { return }
             openWindow(id: "entry", value: PopOutTarget(entryID: entryID, vault: url))
         }
@@ -232,11 +232,11 @@ struct PopOutEntryView: View {
                 HStack(spacing: 10) {
                     EntryIcon(entry: entry, size: 32)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(entry.title.isEmpty ? "Sin título" : entry.title).font(.ui(15, .semibold)).lineLimit(1)
+                        Text(entry.title.isEmpty ? L("Sin título") : entry.title).font(.ui(15, .semibold)).lineLimit(1)
                         Text(vault.name).font(.ui(11)).foregroundStyle(Theme.textTertiary)
                     }
                     Spacer()
-                    IconButton(symbol: pinned ? "pin.fill" : "pin", help: pinned ? "Dejar de fijar" : "Fijar encima de todo",
+                    IconButton(symbol: pinned ? "pin.fill" : "pin", help: pinned ? L("Dejar de fijar") : L("Fijar encima de todo"),
                                tint: pinned ? Theme.text : Theme.textSecondary) {
                         pinned.toggle()
                         window?.level = pinned ? .floating : .normal
@@ -249,7 +249,7 @@ struct PopOutEntryView: View {
                     ScrollView { MarkdownNotes(text: entry.notes) }.padding(14).card()
                 case .login:
                     VStack(spacing: 0) {
-                        FieldRow(label: "Usuario", value: vault.resolve(entry.userName), copyLabel: "Usuario")
+                        FieldRow(label: L("Usuario"), value: vault.resolve(entry.userName), copyLabel: L("Usuario"))
                         PasswordRow(password: vault.resolve(entry.string(FieldKey.password)), showStrength: false)
                         if !entry.url.isEmpty { URLRow(url: vault.resolve(entry.url)) }
                         if let totp = TOTP.from(entry) { TOTPRow(totp: totp) }
@@ -354,9 +354,9 @@ private struct VersionRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text(version.modified.map { $0.formatted(.dateTime.day().month(.abbreviated).year().hour().minute().locale(Locale(identifier: "es_ES"))) } ?? "Sin fecha")
+            Text(version.modified.map { $0.formatted(.dateTime.day().month(.abbreviated).year().hour().minute().locale(appLocale)) } ?? L("Sin fecha"))
                 .font(.ui(13, .medium))
-            Text(changes.isEmpty ? "Sin cambios en los campos" : "Después cambió: " + changes.map(\.label).joined(separator: ", "))
+            Text(changes.isEmpty ? L("Sin cambios en los campos") : L("Después cambió: ") + changes.map(\.label).joined(separator: ", "))
                 .font(.ui(11))
                 .foregroundStyle(Theme.textSecondary)
                 .lineLimit(2)
@@ -395,8 +395,8 @@ private struct VersionDetail: View {
                     ForEach(changes) { change in
                         VStack(alignment: .leading, spacing: 6) {
                             Text(change.label).font(.ui(11, .medium)).foregroundStyle(Theme.textTertiary)
-                            diffLine("Antes", change.old, secret: change.secret, tint: Theme.red)
-                            diffLine("Ahora", change.new, secret: change.secret, tint: Theme.green)
+                            diffLine(L("Antes"), change.old, secret: change.secret, tint: Theme.red)
+                            diffLine(L("Ahora"), change.new, secret: change.secret, tint: Theme.green)
                         }
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)

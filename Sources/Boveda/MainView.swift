@@ -65,7 +65,7 @@ struct MainView: View {
                 .help("Informe de contraseñas (⇧⌘R)")
         }
         ToolbarItem(id: "copiar", placement: .primaryAction, showsByDefault: false) {
-            Button { model.copyPassword() } label: { Label("Copiar " + copyName, systemImage: "key") }
+            Button { model.copyPassword() } label: { Label(L("Copiar ") + copyName, systemImage: "key") }
                 .help("Copiar \(copyName) (⌘C)")
                 .disabled(model.selectedEntry == nil)
         }
@@ -119,8 +119,8 @@ struct MainView: View {
         case .totp: TOTPSheet()
         case .history: HistorySheet()
         case .newGroup:
-            NameSheet(title: model.newGroupParent.flatMap { model.root?.group($0)?.displayName }.map { "Nuevo grupo en \($0)" } ?? "Nuevo grupo",
-                      placeholder: "Nombre del grupo", action: "Crear") { model.addGroup(named: $0, in: model.newGroupParent) }
+            NameSheet(title: model.newGroupParent.flatMap { model.root?.group($0)?.displayName }.map { L("Nuevo grupo en \($0)") } ?? L("Nuevo grupo"),
+                      placeholder: L("Nombre del grupo"), action: L("Crear")) { model.addGroup(named: $0, in: model.newGroupParent) }
         }
     }
 }
@@ -160,9 +160,9 @@ private struct SaveIndicator: View {
 
     var text: String {
         switch model.saveState {
-        case .saved: return "Guardado"
-        case .saving: return "Guardando…"
-        case .failed: return "Sin guardar"
+        case .saved: return L("Guardado")
+        case .saving: return L("Guardando…")
+        case .failed: return L("Sin guardar")
         }
     }
 }
@@ -186,17 +186,17 @@ private struct SidebarView: View {
         )
         List(selection: selection) {
             Section("Vista rápida") {
-                SidebarLabel(item: .all, title: "Todas las entradas", symbol: "tray.full")
-                SidebarLabel(item: .favorites, title: "Favoritos", symbol: "star")
-                SidebarLabel(item: .twoFactor, title: "Códigos 2FA", symbol: "clock.badge.checkmark")
+                SidebarLabel(item: .all, title: L("Todas las entradas"), symbol: "tray.full")
+                SidebarLabel(item: .favorites, title: L("Favoritos"), symbol: "star")
+                SidebarLabel(item: .twoFactor, title: L("Códigos 2FA"), symbol: "clock.badge.checkmark")
                 if model.count(.passkeys) > 0 {
-                    SidebarLabel(item: .passkeys, title: "Claves de acceso", symbol: "person.badge.key")
+                    SidebarLabel(item: .passkeys, title: L("Claves de acceso"), symbol: "person.badge.key")
                 }
                 if model.count(.attachments) > 0 {
-                    SidebarLabel(item: .attachments, title: "Adjuntos", symbol: "paperclip")
+                    SidebarLabel(item: .attachments, title: L("Adjuntos"), symbol: "paperclip")
                 }
                 if model.count(.expired) > 0 {
-                    SidebarLabel(item: .expired, title: "Caducadas", symbol: "calendar.badge.exclamationmark")
+                    SidebarLabel(item: .expired, title: L("Caducadas"), symbol: "calendar.badge.exclamationmark")
                 }
             }
 
@@ -236,7 +236,7 @@ private struct SidebarView: View {
             if model.vault?.recycleBinUUID != nil {
                 Section {
                     let trashed = model.vault?.recycleBinUUID.flatMap { model.root?.group($0) }?.groups ?? []
-                    let bin = SidebarLabel(item: .recycleBin, title: "Papelera", symbol: "trash")
+                    let bin = SidebarLabel(item: .recycleBin, title: L("Papelera"), symbol: "trash")
                         .contextMenu { Button("Vaciar papelera…", role: .destructive) { model.confirmEmptyRecycleBin() } }
                     // Los grupos borrados se ven dentro de la papelera para poder restaurarlos.
                     if trashed.isEmpty {
@@ -250,12 +250,12 @@ private struct SidebarView: View {
             }
 
             Section("Auditoría") {
-                if Preferences.checkBreaches { AuditLabel(kind: .pwned, title: "Filtradas") }
-                AuditLabel(kind: .duplicates, title: "Repetidas")
-                AuditLabel(kind: .similar, title: "Parecidas")
-                AuditLabel(kind: .weak, title: "Débiles")
-                if Preferences.check2FA { AuditLabel(kind: .missing2FA, title: "Sin 2FA") }
-                AuditLabel(kind: .all, title: "Todos los problemas")
+                if Preferences.checkBreaches { AuditLabel(kind: .pwned, title: L("Filtradas")) }
+                AuditLabel(kind: .duplicates, title: L("Repetidas"))
+                AuditLabel(kind: .similar, title: L("Parecidas"))
+                AuditLabel(kind: .weak, title: L("Débiles"))
+                if Preferences.check2FA { AuditLabel(kind: .missing2FA, title: L("Sin 2FA")) }
+                AuditLabel(kind: .all, title: L("Todos los problemas"))
             }
         }
         .listStyle(.sidebar)
@@ -312,7 +312,7 @@ private struct GroupNode: View {
         }
         .onAppear { expanded = group.isExpanded ?? true }
         .sheet(isPresented: $renaming) {
-            NameSheet(title: "Renombrar grupo", placeholder: "Nombre", action: "Guardar", initial: group.displayName) { model.renameGroup(group.uuid, to: $0) }
+            NameSheet(title: L("Renombrar grupo"), placeholder: L("Nombre"), action: L("Guardar"), initial: group.displayName) { model.renameGroup(group.uuid, to: $0) }
         }
     }
 
@@ -345,7 +345,7 @@ private struct SidebarFooter: View {
     var body: some View {
         HStack(spacing: 2) {
             DatabaseSwitcher()
-            IconButton(symbol: "lock", help: "Bloquear todas (⇧⌘L)", size: 30) { model.lockAll() }
+            IconButton(symbol: "lock", help: L("Bloquear todas (⇧⌘L)"), size: 30) { model.lockAll() }
         }
         .padding(.leading, 8)
         .padding(.trailing, 10)
@@ -383,7 +383,7 @@ private struct AuditLabel: View {
         .lineLimit(1)
         .badge(count)
         .accessibilityLabel(title)
-        .accessibilityValue([count > 0 ? "\(count) con problemas" : (unknown == nil ? "sin problemas" : nil), gap?.text].compactMap { $0 }.joined(separator: ". "))
+        .accessibilityValue([count > 0 ? L("\(count) con problemas") : (unknown == nil ? L("sin problemas") : nil), gap?.text].compactMap { $0 }.joined(separator: ". "))
         .tag(SidebarItem.audit(kind))
     }
 }
@@ -432,7 +432,7 @@ private struct EntryListView: View {
         let entries = model.visibleEntries
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(model.search.isEmpty ? model.sidebarTitle : "Resultados")
+                Text(model.search.isEmpty ? model.sidebarTitle : L("Resultados"))
                     .font(.ui(20, .semibold))
                     .tracking(-0.3)
                     .lineLimit(1)
@@ -525,16 +525,16 @@ private struct SortMenu: View {
                     if model.sortKey == key { model.sortAscending.toggle() } else { model.sortKey = key; model.sortAscending = ![.modified, .created, .passwordChanged].contains(key) }
                 } label: {
                     if model.sortKey == key {
-                        Label(key.rawValue, systemImage: model.sortAscending ? "arrow.up" : "arrow.down")
+                        Label(key.label, systemImage: model.sortAscending ? "arrow.up" : "arrow.down")
                     } else {
-                        Text(key.rawValue)
+                        Text(key.label)
                     }
                 }
             }
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: "arrow.up.arrow.down").font(.system(size: 10, weight: .semibold))
-                Text(model.sortKey.rawValue)
+                Text(model.sortKey.label)
             }
             .font(.ui(12, .medium))
             .foregroundStyle(Theme.textSecondary)
@@ -565,7 +565,7 @@ private struct EntryRow: View {
             EntryIcon(entry: entry, size: 38)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
-                    Text(entry.title.isEmpty ? "Sin título" : entry.title)
+                    Text(entry.title.isEmpty ? L("Sin título") : entry.title)
                         .font(.ui(13, .semibold))
                         .lineLimit(1)
                     if entry.kind != .login {
@@ -628,12 +628,12 @@ private struct EntryRow: View {
     private var auditIssue: (symbol: String, color: Color, help: String)? {
         guard case .audit = model.sidebar else { return nil }
         let audit = model.audit
-        if let times = audit.pwned[entry.uuid] { return ("exclamationmark.shield.fill", Theme.red, "Filtrada \(times) veces") }
-        if audit.duplicates[entry.uuid] != nil { return ("exclamationmark.shield", Theme.amber, "Repetida") }
-        if audit.allWeak.contains(entry.uuid) { return ("exclamationmark.shield", Theme.amber, "Débil") }
-        if audit.similar[entry.uuid] != nil { return ("exclamationmark.shield", Theme.amber, "Parecida a otra") }
-        if audit.missing2FA.contains(entry.uuid) { return ("exclamationmark.shield", Theme.amber, "Sin 2FA") }
-        if audit.expired.contains(entry.uuid) { return ("calendar.badge.exclamationmark", Theme.amber, "Caducada") }
+        if let times = audit.pwned[entry.uuid] { return ("exclamationmark.shield.fill", Theme.red, L("Filtrada \(times) veces")) }
+        if audit.duplicates[entry.uuid] != nil { return ("exclamationmark.shield", Theme.amber, L("Repetida")) }
+        if audit.allWeak.contains(entry.uuid) { return ("exclamationmark.shield", Theme.amber, L("Débil")) }
+        if audit.similar[entry.uuid] != nil { return ("exclamationmark.shield", Theme.amber, L("Parecida a otra")) }
+        if audit.missing2FA.contains(entry.uuid) { return ("exclamationmark.shield", Theme.amber, L("Sin 2FA")) }
+        if audit.expired.contains(entry.uuid) { return ("calendar.badge.exclamationmark", Theme.amber, L("Caducada")) }
         return nil
     }
 
@@ -641,11 +641,11 @@ private struct EntryRow: View {
         switch entry.kind {
         case .card:
             let digits = entry.string(CardField.number).filter(\.isNumber)
-            return digits.count >= 4 ? "•••• " + digits.suffix(4) : "Tarjeta"
+            return digits.count >= 4 ? "•••• " + digits.suffix(4) : L("Tarjeta")
         case .note:
-            return entry.notes.split(separator: "\n").first.map(String.init) ?? "Nota"
+            return entry.notes.split(separator: "\n").first.map(String.init) ?? L("Nota")
         case .login:
-            return model.hideUsernames ? "••••••" : (entry.userName.isEmpty ? "Sin usuario" : model.value(FieldKey.userName, of: entry))
+            return model.hideUsernames ? "••••••" : (entry.userName.isEmpty ? L("Sin usuario") : model.value(FieldKey.userName, of: entry))
         }
     }
 
@@ -656,9 +656,9 @@ private struct EntryRow: View {
 
     static func relative(_ date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
-        formatter.locale = Locale(identifier: "es_ES")
+        formatter.locale = appLocale
         formatter.unitsStyle = .short
-        return abs(Date().timeIntervalSince(date)) < 60 ? "ahora" : formatter.localizedString(for: date, relativeTo: Date())
+        return abs(Date().timeIntervalSince(date)) < 60 ? L("ahora") : formatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -699,11 +699,11 @@ struct EntryMenu: View {
     @ViewBuilder
     private var singleMenu: some View {
         if entry.kind == .card {
-            Button("Copiar número") { model.copy(model.value(CardField.number, of: entry), label: "Número", entry: entry.uuid) }
+            Button(L("Copiar número")) { model.copy(model.value(CardField.number, of: entry), label: L("Número"), entry: entry.uuid) }
             Button("Copiar CVV") { model.copy(model.value(CardField.cvv, of: entry), label: "CVV", entry: entry.uuid) }
         } else if entry.kind == .login {
             Button("Copiar usuario") { model.copy(model.value(FieldKey.userName, of: entry), label: "Usuario", entry: entry.uuid) }
-            Button("Copiar contraseña") { model.copy(model.value(FieldKey.password, of: entry), label: "Contraseña", entry: entry.uuid) }
+            Button(L("Copiar contraseña")) { model.copy(model.value(FieldKey.password, of: entry), label: L("Contraseña"), entry: entry.uuid) }
             if let email = entry.email, email != entry.userName {
                 Button("Copiar email") { model.copy(email, label: "Email", entry: entry.uuid) }
             }
@@ -711,7 +711,7 @@ struct EntryMenu: View {
                 Button("Copiar web") { model.copy(model.value(FieldKey.url, of: entry), label: "Web", entry: entry.uuid) }
             }
             if let totp = TOTP.from(entry) {
-                Button("Copiar código 2FA") { model.copy(totp.code(), label: "Código 2FA", entry: entry.uuid) }
+                Button(L("Copiar código 2FA")) { model.copy(totp.code(), label: L("Código 2FA"), entry: entry.uuid) }
             }
             if URL.fromUserInput(entry.url) != nil {
                 Button("Copiar contraseña y abrir web") { model.copyPasswordAndOpenURL(entry) }
@@ -720,7 +720,7 @@ struct EntryMenu: View {
         Menu("Copiar más") {
             if entry.kind == .login { Button("Usuario y contraseña") { model.copyUserAndPassword(entry) } }
             Button("Todos los campos") { model.copyAllFields(entry) }
-            if !entry.notes.isEmpty { Button("Notas") { model.copy(entry.notes, label: "Notas", entry: entry.uuid) } }
+            if !entry.notes.isEmpty { Button(L("Notas")) { model.copy(entry.notes, label: L("Notas"), entry: entry.uuid) } }
             Divider()
             Button("Referencia al usuario") { model.copyReference("U", of: entry) }
             Button("Referencia a la contraseña") { model.copyReference("P", of: entry) }
@@ -794,14 +794,14 @@ private struct EmptyState: View {
 
     /// Texto según dónde estés: una auditoría limpia o una papelera vacía no invitan a crear entradas.
     private var content: (symbol: String, title: String, detail: String, offersNew: Bool) {
-        if searching { return ("magnifyingglass", "Nada coincide con «\(model.search)»", "Busca por título, usuario, web, notas o etiquetas.", false) }
+        if searching { return ("magnifyingglass", L("Nada coincide con «\(model.search)»"), L("Busca por título, usuario, web, notas o etiquetas."), false) }
         switch model.sidebar {
         case let .audit(kind):
-            if let gap = model.auditGap(kind) { return ("shield", gap.pending ? "Comprobando…" : "Sin comprobar", gap.text, false) }
-            return ("checkmark.shield", "Sin problemas", "Ninguna entrada tiene este problema.", false)
-        case .recycleBin: return ("trash", "La papelera está vacía", "Lo que borres aparecerá aquí.", false)
-        case .favorites: return ("star", "Aún no hay favoritos", "Marca una entrada con la estrella para tenerla a mano.", false)
-        default: return ("tray", "No hay entradas aquí", "Crea una con ⌘N.", true)
+            if let gap = model.auditGap(kind) { return ("shield", gap.pending ? L("Comprobando…") : L("Sin comprobar"), gap.text, false) }
+            return ("checkmark.shield", L("Sin problemas"), L("Ninguna entrada tiene este problema."), false)
+        case .recycleBin: return ("trash", L("La papelera está vacía"), L("Lo que borres aparecerá aquí."), false)
+        case .favorites: return ("star", L("Aún no hay favoritos"), L("Marca una entrada con la estrella para tenerla a mano."), false)
+        default: return ("tray", L("No hay entradas aquí"), L("Crea una con ⌘N."), true)
         }
     }
 }
