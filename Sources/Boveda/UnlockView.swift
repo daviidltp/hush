@@ -411,7 +411,7 @@ struct UnlockView: View {
 
     private func pickKeyFile() {
         let panel = NSOpenPanel()
-        panel.message = "Elige el archivo de clave"
+        panel.message = L("Elige el archivo de clave")
         if panel.runModal() == .OK { keyFile = panel.url }
     }
 }
@@ -419,7 +419,7 @@ struct UnlockView: View {
 struct CreateVaultSheet: View {
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
-    @State private var name = "Contraseñas"
+    @State private var name = L("Contraseñas")
     @State private var password = ""
     @State private var confirm = ""
 
@@ -434,11 +434,11 @@ struct CreateVaultSheet: View {
                 .foregroundStyle(Theme.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
             LabeledField("Nombre") { GField(focused: false) { TextField("", text: $name) } }
-            LabeledField("Contraseña maestra") {
+            LabeledField(L("Contraseña maestra")) {
                 GField(focused: false) { SecureField("", text: $password).font(.mono(13)) }
             }
-            StrengthBar(fraction: password.isEmpty ? 0 : strength.fraction, label: password.count < 8 ? "Mínimo 8 caracteres" : strength.label)
-            LabeledField("Repítela") {
+            StrengthBar(fraction: password.isEmpty ? 0 : strength.fraction, label: password.count < 8 ? L("Mínimo 8 caracteres") : strength.label)
+            LabeledField(L("Repítela")) {
                 GField(focused: false) { SecureField("", text: $confirm).font(.mono(13)) }
             }
             if !confirm.isEmpty && confirm != password {

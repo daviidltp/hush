@@ -93,7 +93,7 @@ struct EntryDraft: Identifiable {
 
     func apply(to base: KDBX.Entry) -> KDBX.Entry {
         var entry = base
-        entry.set(FieldKey.title, title.trimmingCharacters(in: .whitespaces).isEmpty ? "Sin título" : title)
+        entry.set(FieldKey.title, title.trimmingCharacters(in: .whitespaces).isEmpty ? L("Sin título") : title)
         entry.set(FieldKey.userName, userName)
         entry.set(FieldKey.password, password, protected: true)
         entry.set(FieldKey.url, url.trimmingCharacters(in: .whitespaces))

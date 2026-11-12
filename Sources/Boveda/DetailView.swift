@@ -36,7 +36,8 @@ private struct EntryDetail: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
-                AuditBanner(issues: entry.excludedFromAudit ? [] : model.audit.issues(for: entry.uuid))
+                AuditBanner(issues: entry.excludedFromAudit ? [] : model.audit.issues(for: entry.uuid),
+                            breached: !entry.excludedFromAudit && model.audit.pwned[entry.uuid] != nil)
                 if entry.excludedFromAudit {
                     Label("Excluida de la auditoría", systemImage: "shield.slash")
                         .font(.ui(12)).foregroundStyle(Theme.textTertiary)
@@ -51,7 +52,7 @@ private struct EntryDetail: View {
                     }
                 case .login:
                     VStack(spacing: 0) {
-                        FieldRow(label: "Usuario", value: model.value(FieldKey.userName, of: entry), copyLabel: "Usuario",
+                        FieldRow(label: L("Usuario"), value: model.value(FieldKey.userName, of: entry), copyLabel: L("Usuario"),
                                  isReference: FieldReference.contains(entry.userName))
                         PasswordRow(password: model.value(FieldKey.password, of: entry),
                                     isReference: FieldReference.contains(entry.string(FieldKey.password)))
@@ -78,7 +79,7 @@ private struct EntryDetail: View {
                 }
 
                 if !entry.notes.isEmpty && entry.kind != .note {
-                    SectionLabel("Notas")
+                    SectionLabel(L("Notas"))
                     MarkdownNotes(text: entry.notes)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(14)
@@ -87,7 +88,7 @@ private struct EntryDetail: View {
 
                 let tags = entry.tags.filter { $0 != favoriteTag }
                 if !tags.isEmpty {
-                    SectionLabel("Etiquetas")
+                    SectionLabel(L("Etiquetas"))
                     FlowTags(tags: tags)
                 }
 
@@ -120,7 +121,7 @@ private struct EntryDetail: View {
         HStack(alignment: .center, spacing: 12) {
             EntryIcon(entry: entry, size: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.title.isEmpty ? "Sin título" : entry.title)
+                Text(entry.title.isEmpty ? L("Sin título") : entry.title)
                     .font(.ui(18, .semibold))
                     .tracking(-0.3)
                     .lineLimit(2)
@@ -131,7 +132,7 @@ private struct EntryDetail: View {
                     .lineLimit(1)
             }
             Spacer()
-            IconButton(symbol: entry.isFavorite ? "star.fill" : "star", help: entry.isFavorite ? "Quitar de favoritos" : "Añadir a favoritos", tint: entry.isFavorite ? Theme.amber : Theme.textSecondary) {
+            IconButton(symbol: entry.isFavorite ? "star.fill" : "star", help: entry.isFavorite ? L("Quitar de favoritos") : L("Añadir a favoritos"), tint: entry.isFavorite ? Theme.amber : Theme.textSecondary) {
                 model.toggleFavorite(entry.uuid)
             }
             PopOutButton(entryID: entry.uuid)
@@ -189,7 +190,7 @@ struct FieldRow: View {
             }
             Spacer()
             if !value.isEmpty {
-                IconButton(symbol: "doc.on.doc", help: "Copiar \(copyLabel.lowercased())", size: 26) { model.copy(value, label: copyLabel) }
+                IconButton(symbol: "doc.on.doc", help: L("Copiar \(copyLabel.lowercased())"), size: 26) { model.copy(value, label: copyLabel) }
                     .opacity(hovering ? 1 : 0.55)
             }
         }
@@ -204,7 +205,7 @@ struct FieldRow: View {
 struct PasswordRow: View {
     @Environment(AppModel.self) private var model
     let password: String
-    var label = "Contraseña"
+    var label = L("Contraseña")
     var showStrength = true
     var isReference = false
     @State private var reveal = false
@@ -228,16 +229,16 @@ struct PasswordRow: View {
                 }
                 Spacer()
                 if !password.isEmpty {
-                    IconButton(symbol: reveal || model.revealPassword ? "eye.slash" : "eye", help: reveal ? "Ocultar" : "Mostrar (⇧⌘C)", size: 26) {
+                    IconButton(symbol: reveal || model.revealPassword ? "eye.slash" : "eye", help: reveal ? L("Ocultar") : L("Mostrar (⇧⌘C)"), size: 26) {
                         if model.revealPassword { model.revealPassword = false; reveal = false } else { reveal.toggle() }
                     }
-                    IconButton(symbol: "doc.on.doc", help: "Copiar " + (label == label.uppercased() ? label : label.lowercased()), size: 26) { model.copy(password, label: label) }
+                    IconButton(symbol: "doc.on.doc", help: L("Copiar ") + (label == label.uppercased() ? label : label.lowercased()), size: 26) { model.copy(password, label: label) }
                 }
             }
             if showStrength && !password.isEmpty {
                 // Una contraseña filtrada no es «fuerte» aunque sea larga: la barra no debe contradecir el aviso.
                 if Preferences.checkBreaches, (AuditServices.shared.pwnedCount(for: password) ?? 0) > 0 {
-                    StrengthBar(fraction: 0.08, label: "Filtrada · cámbiala")
+                    StrengthBar(fraction: 0.08, label: L("Filtrada · cámbiala"))
                 } else {
                     let strength = PasswordStrength.of(password)
                     StrengthBar(fraction: strength.fraction, label: "\(strength.label) · \(Int(PasswordStrength.bits(password))) bits")
@@ -280,7 +281,7 @@ struct URLRow: View {
             IconButton(symbol: "arrow.up.right", help: "Abrir web", size: 26) {
                 if let target = URL.fromUserInput(url) { NSWorkspace.shared.open(target) }
             }
-            IconButton(symbol: "doc.on.doc", help: "Copiar web", size: 26) { model.copy(url, label: "Web") }
+            IconButton(symbol: "doc.on.doc", help: "Copiar web", size: 26) { model.copy(url, label: L("Web")) }
         }
         .rowPadding()
         .background(hovering ? Theme.backgroundSubtle : .clear)
@@ -316,7 +317,7 @@ struct TOTPRow: View {
                     Text("\(remaining)").font(.ui(10, .medium)).foregroundStyle(Theme.textSecondary).monospacedDigit()
                 }
                 .frame(width: 26, height: 26)
-                IconButton(symbol: "doc.on.doc", help: "Copiar código", size: 26) { model.copy(code, label: "Código 2FA") }
+                IconButton(symbol: "doc.on.doc", help: L("Copiar código"), size: 26) { model.copy(code, label: L("Código 2FA")) }
             }
             .rowPadding()
         }
@@ -372,10 +373,10 @@ private struct Metadata: View {
             if expanded {
                 let times = located.entry.times
                 VStack(alignment: .leading, spacing: 6) {
-                    meta("Creada", times?.creationTime)
-                    meta("Modificada", times?.lastModificationTime)
-                    if times?.expires == true { meta("Caduca", times?.expiryTime) }
-                    meta("Contraseña cambiada", located.entry.passwordChangedDate)
+                    meta(L("Creada"), times?.creationTime)
+                    meta(L("Modificada"), times?.lastModificationTime)
+                    if times?.expires == true { meta(L("Caduca"), times?.expiryTime) }
+                    meta(L("Contraseña cambiada"), located.entry.passwordChangedDate)
                     HStack(alignment: .firstTextBaseline) {
                         Text("Versiones anteriores").font(.ui(12)).foregroundStyle(Theme.textTertiary).frame(width: 140, alignment: .leading)
                         Text("\(located.entry.history.count)").font(.ui(12)).foregroundStyle(Theme.textSecondary)
@@ -393,7 +394,7 @@ private struct Metadata: View {
     }
 
     private func meta(_ label: String, _ date: Date?) -> some View {
-        row(label, date.map { $0.formatted(.dateTime.day().month(.abbreviated).year().hour().minute().locale(Locale(identifier: "es_ES"))) } ?? "—")
+        row(label, date.map { $0.formatted(.dateTime.day().month(.abbreviated).year().hour().minute().locale(appLocale)) } ?? "—")
     }
 
     private func row(_ label: String, _ value: String) -> some View {
@@ -407,8 +408,9 @@ private struct Metadata: View {
 /// Aviso de auditoría arriba de la entrada (contraseña repetida, débil o caducada).
 private struct AuditBanner: View {
     let issues: [String]
-    /// Rojo si la contraseña ha salido en filtraciones; naranja para lo demás.
-    private var tint: Color { issues.first?.hasPrefix("Ha aparecido") == true ? Theme.red : Theme.amber }
+    /// La contraseña ha salido en filtraciones (el aviso va en rojo; lo demás, en naranja).
+    let breached: Bool
+    private var tint: Color { breached ? Theme.red : Theme.amber }
 
     var body: some View {
         if !issues.isEmpty {
@@ -436,7 +438,7 @@ private struct AttachmentsSection: View {
         let files = model.vault?.attachments(of: entry) ?? []
         let editable = !model.isInRecycleBin(entry.uuid)
         if !files.isEmpty {
-            SectionLabel("Adjuntos")
+            SectionLabel(L("Adjuntos"))
             VStack(spacing: 0) {
                 ForEach(files) { file in AttachmentRow(entryID: entry.uuid, file: file, editable: editable) }
             }
@@ -474,7 +476,7 @@ private struct AttachmentRow: View {
                     .foregroundStyle(Theme.textTertiary)
             }
             Spacer()
-            IconButton(symbol: "eye", help: "Abrir", size: 26) { model.openAttachment(file.name, of: entryID) }
+            IconButton(symbol: "eye", help: L("Abrir"), size: 26) { model.openAttachment(file.name, of: entryID) }
                 .opacity(hovering ? 1 : 0.55)
             IconButton(symbol: "square.and.arrow.down", help: "Guardar como…", size: 26) { model.exportAttachment(file.name, of: entryID) }
                 .opacity(hovering ? 1 : 0.55)
@@ -495,7 +497,7 @@ private struct AttachmentRow: View {
             }
         }
         .sheet(isPresented: $renaming) {
-            NameSheet(title: "Renombrar adjunto", placeholder: "Nombre del archivo", action: "Renombrar", initial: file.name) {
+            NameSheet(title: L("Renombrar adjunto"), placeholder: L("Nombre del archivo"), action: L("Renombrar"), initial: file.name) {
                 model.renameAttachment(file.name, to: $0, in: entryID)
             }
         }

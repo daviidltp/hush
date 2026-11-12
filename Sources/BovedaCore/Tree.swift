@@ -65,7 +65,7 @@ public struct LocatedEntry {
 }
 
 public extension KDBX.Group {
-    var displayName: String { name ?? "Sin nombre" }
+    var displayName: String { name ?? L("Sin nombre") }
 
     /// Todas las entradas de este grupo y sus subgrupos, saltándose los grupos indicados.
     func allEntries(excluding excluded: Set<UUID> = []) -> [KDBX.Entry] {
@@ -259,7 +259,7 @@ public extension Vault {
     /// Papelera de reciclaje como hacen KeePassXC y KeePassium: la crea si no existe.
     mutating func ensureRecycleBin() -> UUID {
         if let bin = recycleBinUUID, root.group(bin) != nil { return bin }
-        let id = addGroup(named: "Papelera", to: root.uuid)
+        let id = addGroup(named: L("Papelera"), to: root.uuid)
         root.mutateGroup(id) { $0.iconID = 43 }
         content.database.meta.recycleBinUUID = id
         return id

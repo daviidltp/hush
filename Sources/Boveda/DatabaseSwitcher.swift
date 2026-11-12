@@ -1,4 +1,5 @@
 import AppKit
+import BovedaCore
 import SwiftUI
 
 /// Selector de bases de datos arriba de la barra lateral, como el de espacios de trabajo de Slack o Linear.
@@ -34,7 +35,7 @@ struct DatabaseSwitcher: View {
         .buttonStyle(.plain)
         .onHover { hovering = $0 }
         .help("Cambiar de base de datos")
-        .accessibilityLabel("Base de datos actual: \(model.vault?.name ?? ""). Pulsa para cambiar")
+        .accessibilityLabel(L("Base de datos actual: \(model.vault?.name ?? ""). Pulsa para cambiar"))
         .popover(isPresented: $open, arrowEdge: .top) {
             DatabaseMenu { open = false }
         }
@@ -42,7 +43,7 @@ struct DatabaseSwitcher: View {
 
     private var subtitle: String {
         let open = model.openURLs.count
-        let entries = "\(model.count(.all)) entradas"
+        let entries = L("\(model.count(.all)) entradas")
         return open > 1 ? entries + " · \(open) abiertas" : entries
     }
 }
@@ -68,7 +69,7 @@ private struct DatabaseMenu: View {
                 }
             }
 
-            MenuAction(title: "Añadir base de datos…", symbol: "plus") {
+            MenuAction(title: L("Añadir base de datos…"), symbol: "plus") {
                 dismiss()
                 model.addDatabase()
             }
@@ -76,19 +77,19 @@ private struct DatabaseMenu: View {
             Divider().padding(.vertical, 4)
 
             if model.vault != nil {
-                MenuAction(title: "Ajustes de esta base…", symbol: "slider.horizontal.3") {
+                MenuAction(title: L("Ajustes de esta base…"), symbol: "slider.horizontal.3") {
                     dismiss()
                     model.sheet = .databaseSettings
                 }
-                MenuAction(title: "Recargar desde el disco", symbol: "arrow.clockwise") {
+                MenuAction(title: L("Recargar desde el disco"), symbol: "arrow.clockwise") {
                     dismiss()
                     Task { await model.reloadFromDisk() }
                 }
-                MenuAction(title: "Mostrar en Finder", symbol: "folder") {
+                MenuAction(title: L("Mostrar en Finder"), symbol: "folder") {
                     dismiss()
                     if let url = model.vault?.url { NSWorkspace.shared.activateFileViewerSelecting([url]) }
                 }
-                MenuAction(title: "Cerrar esta base", symbol: "xmark.circle") {
+                MenuAction(title: L("Cerrar esta base"), symbol: "xmark.circle") {
                     dismiss()
                     model.closeDatabase()
                 }
@@ -137,7 +138,7 @@ private struct DatabaseMenuRow: View {
             }
         }
         .buttonStyle(MenuRowStyle(height: 42))
-        .accessibilityLabel("Base de datos \(url.deletingPathExtension().lastPathComponent)")
+        .accessibilityLabel(L("Base de datos \(url.deletingPathExtension().lastPathComponent)"))
         .contextMenu {
             if isOpen && !active {
                 Button("Bloquear") { model.lockBackground(url) }
@@ -148,9 +149,9 @@ private struct DatabaseMenuRow: View {
     }
 
     private func status(isOpen: Bool) -> String {
-        guard isOpen else { return "Bloqueada" }
-        if let count = model.entryCount(of: url) { return "Abierta · \(count) entradas" }
-        return "Abierta"
+        guard isOpen else { return L("Bloqueada") }
+        if let count = model.entryCount(of: url) { return L("Abierta · \(count) entradas") }
+        return L("Abierta")
     }
 }
 

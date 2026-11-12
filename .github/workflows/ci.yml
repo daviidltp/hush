@@ -25,6 +25,11 @@ jobs:
         run: swift --version
       - name: Tests
         run: swift test
+      - name: Translations
+        run: |
+          python3 scripts/i18n.py extract
+          python3 scripts/i18n.py audit
+          python3 scripts/i18n.py check
       - name: Extension
         run: |
           node --check Extension/src/background.js

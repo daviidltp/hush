@@ -13,7 +13,7 @@ Gestor de contraseñas para macOS, nativo (Swift y SwiftUI), sobre archivos **KD
 - Desbloqueo con contraseña maestra, archivo de clave o Touch ID (con el Secure Enclave).
 - Varias bases abiertas a la vez, búsqueda, favoritos, grupos, papelera e historial de cambios con comparar y restaurar.
 - Códigos 2FA (TOTP), tarjetas, notas seguras, adjuntos y referencias entre entradas.
-- Generador de contraseñas y frases en español.
+- Generador de contraseñas y frases (en español o en inglés, según el idioma de la app).
 - Auditoría: contraseñas filtradas (Have I Been Pwned con k-anonimato: solo salen 5 caracteres del hash), repetidas, parecidas, débiles y webs que admiten 2FA.
 - Búsqueda rápida con atajo global (⇧⌘Espacio) e icono en la barra de menús.
 - Autorrelleno en el navegador (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox y Zen).
@@ -51,11 +51,16 @@ La extensión todavía no está en las tiendas de Chrome ni de Firefox. Hasta en
 
 Si encuentras un fallo de seguridad, mira [SECURITY.md](SECURITY.md). Para contribuir, [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## Idiomas
+
+Hush usa el idioma del Mac: español, inglés, alemán, francés, italiano y portugués (Brasil). Las traducciones están en `Resources/i18n/<idioma>.json`; para añadir o corregir una, mira [CONTRIBUTING.md](CONTRIBUTING.md#translations).
+
 ## Créditos
 
 - [KDBXKit](https://github.com/shadone/KDBXKit) (BSD 2-Clause), copia en `Vendor/KDBXKit` con un parche de fechas.
 - Argon2 (CC0 / Apache 2.0), incluido en KDBXKit.
 - [Public Suffix List](https://publicsuffix.org) (MPL 2.0), en `Sources/BovedaCore/PublicSuffixData.swift`.
+- [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US) para las frases en inglés, y la lista en español de [diceware](https://github.com/ulif/diceware).
 
 ## Licencia
 

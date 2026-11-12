@@ -23,6 +23,9 @@ NATIVE_HOST=com.david.hush
 [[ $CONFIG == debug ]] && { BUNDLE_ID=com.david.boveda.dev; NATIVE_HOST=com.david.hush.dev; }
 # Extensión del navegador (carpeta para Chrome/Brave y .xpi para Firefox/Zen).
 python3 Extension/build.py "$APP/Contents/Resources/Extension" "$NATIVE_HOST" "$VERSION"
+# Traducciones: <idioma>.lproj/Localizable.strings a partir de Resources/i18n (ver scripts/i18n.py).
+LOCALIZATIONS=""
+for lang in $(python3 scripts/i18n.py build "$APP/Contents/Resources"); do LOCALIZATIONS+="<string>$lang</string>"; done
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -37,6 +40,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 <key>CFBundleShortVersionString</key><string>${VERSION}</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleDevelopmentRegion</key><string>es</string>
+<key>CFBundleLocalizations</key><array>${LOCALIZATIONS}</array>
 <key>LSMinimumSystemVersion</key><string>15.0</string>
 <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
 <key>NSPrincipalClass</key><string>NSApplication</string>

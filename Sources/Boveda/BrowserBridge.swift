@@ -281,10 +281,10 @@ final class BrowserBridge {
         defer { pairing.remove(client) }
         NSApp.activate()
         let alert = NSAlert()
-        alert.messageText = "¿Conectar \(browser) con Hush?"
-        alert.informativeText = "Podrá rellenar tus contraseñas en las webs que visites. Comprueba que la extensión muestra el código \(Self.code(for: client)). Si no has pedido esto, pulsa «No conectar»."
-        alert.addButton(withTitle: "Conectar")
-        alert.addButton(withTitle: "No conectar")
+        alert.messageText = L("¿Conectar \(browser) con Hush?")
+        alert.informativeText = L("Podrá rellenar tus contraseñas en las webs que visites. Comprueba que la extensión muestra el código \(Self.code(for: client)). Si no has pedido esto, pulsa «No conectar».")
+        alert.addButton(withTitle: L("Conectar"))
+        alert.addButton(withTitle: L("No conectar"))
         guard alert.runModal() == .alertFirstButtonReturn else { return ["error": "denied"] }
         Self.paired[client] = browser
         return ["paired": true]
@@ -298,7 +298,7 @@ final class BrowserBridge {
                 let rank = recent.firstIndex(of: AppModel.recentKey(entry.uuid, in: vault.url)) ?? Int.max
                 found.append((rank, entry.title, [
                     "uuid": entry.uuid.uuidString, "vault": vault.url.path, "vaultName": vault.name,
-                    "title": entry.title.isEmpty ? "Sin título" : entry.title, "user": vault.resolve(entry.userName),
+                    "title": entry.title.isEmpty ? L("Sin título") : entry.title, "user": vault.resolve(entry.userName),
                     "url": vault.resolve(entry.url), "totp": TOTP.from(entry) != nil,
                 ]))
             }
@@ -321,7 +321,7 @@ final class BrowserBridge {
 private final class BridgeConnection: @unchecked Sendable {
     private let fd: Int32
     private let writeQueue = DispatchQueue(label: "hush.bridge.write")
-    private var browser = "El navegador"
+    private var browser = L("El navegador")
     /// Se marca (en la cola de escritura) al cerrar, para no escribir en un descriptor ya cerrado.
     private var closed = false
 
