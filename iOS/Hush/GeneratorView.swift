@@ -17,40 +17,48 @@ struct PasswordStrengthInfo {
 struct GeneratorPanel: View {
     @Environment(AppModel.self) private var model
     @Binding var value: String
+    /// En la hoja del editor no hace falta: allí está «Usar contraseña».
+    var showsCopy = true
     @State private var options = Preferences.generator
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 16) {
-            VStack(spacing: 14) {
+            VStack(spacing: 16) {
                 Text(value)
                     .font(.mono(.title3, weight: .medium))
                     .foregroundStyle(Theme.text)
                     .multilineTextAlignment(.center)
                     .lineLimit(4)
                     .minimumScaleFactor(0.7)
-                    .frame(maxWidth: .infinity, minHeight: 60)
+                    .frame(maxWidth: .infinity, minHeight: 72)
                     .contentTransition(.opacity)
                     .textSelection(.enabled)
-                HStack(spacing: 12) {
-                    GlassIconButton(symbol: "doc.on.doc", label: "Copiar", size: 44) { model.copy(value, label: "Contraseña") }
-                    GlassIconButton(symbol: "arrow.clockwise", label: "Otra", size: 44) { regenerate() }
-                }
                 let entropy = PasswordGenerator.entropy(options)
                 let fraction = PasswordStrength.of(bits: entropy).fraction
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     MeterBar(fraction: fraction, tint: Theme.strengthColor(fraction))
                     Text("\(Int(entropy)) bits").font(.caption.monospacedDigit()).foregroundStyle(Theme.textSecondary).fixedSize()
                 }
             }
-            .padding(18)
+            .padding(20)
             .background(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous).fill(Theme.backgroundSubtle))
+
+            HStack(spacing: 10) {
+                Button { regenerate() } label: { Label("Otra", systemImage: "arrow.clockwise") }
+                    .buttonStyle(SecondaryButtonStyle())
+                if showsCopy {
+                    Button { model.copy(value, label: "Contraseña") } label: { Label("Copiar", systemImage: "doc.on.doc") }
+                        .buttonStyle(PrimaryButtonStyle())
+                }
+            }
 
             Picker("Tipo", selection: $options.usePassphrase) {
                 Text("Aleatoria").tag(false)
                 Text("Frase").tag(true)
             }
             .pickerStyle(.segmented)
+            .padding(.top, 8)
 
             Card {
                 if options.usePassphrase {
@@ -125,6 +133,7 @@ struct GeneratorScreen: View {
         ScrollView {
             GeneratorPanel(value: $value)
                 .padding(.horizontal, Theme.gutter)
+                .padding(.top, 8)
                 .padding(.bottom, 120)
         }
         .background(HushBackground())
@@ -141,8 +150,9 @@ struct GeneratorSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                GeneratorPanel(value: $value)
+                GeneratorPanel(value: $value, showsCopy: false)
                     .padding(.horizontal, Theme.gutter)
+                    .padding(.top, 8)
                     .padding(.bottom, 24)
             }
             .background(Theme.background)

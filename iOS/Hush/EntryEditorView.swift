@@ -59,7 +59,7 @@ struct EntryEditorView: View {
                 .listRowSeparator(.hidden)
 
                 if draft.kind == .card {
-                    Section("Tarjeta") {
+                    Section(header: ListHeader("Tarjeta")) {
                         ForEach(CardField.all, id: \.self) { key in
                             TextField(key, text: Binding(get: { draft.card[key] ?? "" }, set: { draft.card[key] = $0 }))
                                 .keyboardType(key == CardField.holder ? .default : .numberPad)
@@ -78,7 +78,7 @@ struct EntryEditorView: View {
                             .autocorrectionDisabled()
                             .font(.mono(.footnote))
                     } header: {
-                        Text("Código 2FA")
+                        ListHeader("Código 2FA")
                     } footer: {
                         if !draft.otpIsValid {
                             Text("No es un código 2FA válido.").foregroundStyle(Theme.red)
@@ -90,7 +90,7 @@ struct EntryEditorView: View {
                 .listRowSeparator(.hidden)
                 }
 
-                Section("Notas") {
+                Section(header: ListHeader("Notas")) {
                     TextField("Notas", text: $draft.notes, axis: .vertical)
                         .focused($focus, equals: .notes)
                         .lineLimit(3...12)
@@ -118,7 +118,7 @@ struct EntryEditorView: View {
                         }
                     }
                 } header: {
-                    Text("Otros campos")
+                    ListHeader("Otros campos")
                 } footer: {
                     if !draft.customKeysAreValid {
                         Text("Cada campo necesita un nombre distinto que no sea uno de los fijos.").foregroundStyle(Theme.red)

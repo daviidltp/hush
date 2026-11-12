@@ -436,7 +436,113 @@ final class AppModel {
         } else {
             base = vault.root.allEntries(excluding: excluded)
         }
-        return base.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        // Favoritos arriba; el resto por nombre.
+        return base.sorted {
+            if $0.isFavorite != $1.isFavorite { return $0.isFavorite }
+            return $0.title.localizedStandardCompare($1.title) == .orderedAscending
+        }
+    }
+
+    // MARK: - Recientes
+
+    /// Entradas abiertas hace poco en esta base (solo sus identificadores, sin nada secreto).
+    var recentEntries: [KDBX.Entry] {
+        _ = version
+        guard let vault, let db = openDatabase else { return [] }
+        return Preferences.recents(for: db.id).compactMap { id in
+            vault.locate(id).map(\.entry).flatMap { vault.isInRecycleBin($0.uuid) ? nil : $0 }
+        }
+    }
+
+    func noteOpened(_ id: UUID) {
+        guard let db = openDatabase else { return }
+        var list = Preferences.recents(for: db.id).filter { $0 != id }
+        list.insert(id, at: 0)
+        Preferences.setRecents(Array(list.prefix(8)), for: db.id)
+    }
+
+    // MARK: - Carpetas
+
+    /// Crea una carpeta dentro de `parent` (o en la raíz) y devuelve su identificador.
+    @discardableResult
+    func createFolder(named name: String, in parent: UUID?) -> UUID? {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty, let vault else { return nil }
+        let target = parent.flatMap { $0 == vault.recycleBinUUID ? nil : $0 } ?? vault.root.uuid
+        var created: UUID?
+        mutate { created = $0.addGroup(named: clean, to: target) }
+        toast = Toast(symbol: "folder", message: "Carpeta creada")
+        return created
+    }
+
+    func renameFolder(_ id: UUID, to name: String) {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        mutate { $0.renameGroup(id, to: clean) }
+    }
+
+    func deleteFolder(_ id: UUID) {
+        mutate { $0.deleteGroup(id) }
+    }
+
+    // MARK: - Nombre de la base y del archivo
+
+    /// Cambia el nombre que se guarda dentro de la base (el que ven todas las apps).
+    func renameDatabase(to name: String) {
+        let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !clean.isEmpty else { return }
+        mutate { vault in
+            vault.content.database.meta.databaseName = clean
+            vault.content.database.meta.databaseNameChanged = Date()
+        }
+    }
+
+    /// Cambia el nombre del archivo .kdbx en su carpeta y lo vuelve a abrir desde ahí.
+    func renameFile(to name: String) async {
+        var clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.lowercased().hasSuffix(".kdbx") { clean = String(clean.dropLast(5)) }
+        guard !clean.isEmpty, !clean.contains("/"), let current = vault, var db = openDatabase else { return }
+        await saveChain?.value
+        guard !unsaved else {
+            alert = AlertMessage(title: "No se ha renombrado", message: "Hay cambios sin guardar. Guárdalos antes.")
+            return
+        }
+        let old = current.url
+        let new = old.deletingLastPathComponent().appendingPathComponent(clean + ".kdbx")
+        guard new != old else { return }
+        do {
+            try await Task.detached(priority: .userInitiated) {
+                guard !FileManager.default.fileExists(atPath: new.path) else {
+                    throw CocoaError(.fileWriteFileExists)
+                }
+                var coordinatorError: NSError?
+                var moveError: Error?
+                let coordinator = NSFileCoordinator()
+                coordinator.coordinate(writingItemAt: old, options: .forMoving, writingItemAt: new, options: .forReplacing, error: &coordinatorError) { from, to in
+                    do {
+                        coordinator.item(at: from, willMoveTo: to)
+                        try FileManager.default.moveItem(at: from, to: to)
+                        coordinator.item(at: from, didMoveTo: to)
+                    } catch { moveError = error }
+                }
+                if let error = coordinatorError ?? moveError { throw error }
+            }.value
+            let unlock = current.unlock
+            let reopened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: new, unlock: unlock) }.value
+            let scoped = new.startAccessingSecurityScopedResource()
+            accessedURL?.stopAccessingSecurityScopedResource()
+            accessedURL = scoped ? new : nil
+            db.name = clean
+            db.bookmark = try Bookmarks.make(for: new)
+            update(db)
+            openDatabase = db
+            vault = reopened
+            version += 1
+            toast = Toast(symbol: "checkmark", message: "Archivo renombrado")
+        } catch {
+            alert = AlertMessage(title: "No se ha podido renombrar", message: "Esta ubicación no deja cambiar el nombre del archivo desde Hush. Puedes hacerlo desde la app Archivos.")
+            log.error("Renombrar archivo: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func search(_ text: String) -> [KDBX.Entry] {

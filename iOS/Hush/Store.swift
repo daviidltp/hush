@@ -106,4 +106,13 @@ enum Preferences {
         get { defaults.data(forKey: "generator").flatMap { try? JSONDecoder().decode(GeneratorOptions.self, from: $0) } ?? GeneratorOptions() }
         set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "generator") }
     }
+
+    /// Entradas abiertas hace poco, por base (solo identificadores).
+    static func recents(for database: UUID) -> [UUID] {
+        (defaults.stringArray(forKey: "recents-" + database.uuidString) ?? []).compactMap(UUID.init)
+    }
+
+    static func setRecents(_ ids: [UUID], for database: UUID) {
+        defaults.set(ids.map(\.uuidString), forKey: "recents-" + database.uuidString)
+    }
 }

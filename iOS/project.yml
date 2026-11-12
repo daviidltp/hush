@@ -24,6 +24,7 @@ targets:
     entitlements:
       path: Hush/Hush.entitlements
       properties:
+        com.apple.developer.authentication-services.autofill-credential-provider: true
         com.apple.security.application-groups: [group.com.david.hush]
         keychain-access-groups: ["$(AppIdentifierPrefix)com.david.hush"]
     dependencies:

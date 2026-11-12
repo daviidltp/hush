@@ -228,3 +228,71 @@ struct AppMark: View {
             .accessibilityHidden(true)
     }
 }
+
+/// Botón secundario: píldora gris, del mismo tamaño que el principal.
+struct SecondaryButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.body.weight(.semibold))
+            .foregroundStyle(Theme.text)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(Capsule().fill(Theme.fill))
+            .opacity(enabled ? (configuration.isPressed ? 0.75 : 1) : 0.4)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
+            .contentShape(Capsule())
+            .animation(.spring(response: 0.2, dampingFraction: 1), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Vibración
+
+/// Una vibración suave en cada toque de la app (botones, filas, pestañas, hojas…).
+/// Se engancha a la ventana sin quitarle los toques a nadie.
+struct HapticTaps: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView { Installer() }
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private final class Installer: UIView, UIGestureRecognizerDelegate {
+        private weak var installedOn: UIWindow?
+        private let generator = UIImpactFeedbackGenerator(style: .light)
+
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            guard let window, installedOn !== window else { return }
+            let tap = UITapGestureRecognizer(target: self, action: #selector(tapped))
+            tap.cancelsTouchesInView = false
+            tap.delaysTouchesBegan = false
+            tap.delaysTouchesEnded = false
+            tap.delegate = self
+            window.addGestureRecognizer(tap)
+            installedOn = window
+            isUserInteractionEnabled = false
+        }
+
+        @objc private func tapped() {
+            generator.impactOccurred(intensity: 0.7)
+        }
+
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+        func gestureRecognizer(_ g: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool { false }
+    }
+}
+
+/// Cabecera de sección de las listas, alineada con el título grande de la pantalla.
+struct ListHeader: View {
+    let text: String
+    init(_ text: String) { self.text = text }
+
+    var body: some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(Theme.textTertiary)
+            .textCase(nil)
+            .padding(.leading, -16)
+            .padding(.bottom, 2)
+    }
+}

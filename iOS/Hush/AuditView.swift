@@ -2,10 +2,9 @@ import BovedaCore
 import KDBXKit
 import SwiftUI
 
-/// Auditoría: resumen en tarjetas de cristal (que filtran la lista) y las entradas con problemas debajo.
+/// Auditoría: resumen en tarjetas; cada una abre la lista de entradas de ese apartado.
 struct AuditScreen: View {
     @Environment(AppModel.self) private var model
-    @State private var category: Category = .all
 
     enum Category: String, CaseIterable, Identifiable {
         case all, pwned, reused, similar, weak, expired
@@ -47,54 +46,45 @@ struct AuditScreen: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 12) {
                 if let audit = model.audit {
-                    summary(audit)
-                    breachesRow
-                    list(audit)
+                    tile(.pwned, audit: audit, wide: true)
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        ForEach([Category.reused, .similar, .weak, .expired]) { tile($0, audit: audit, wide: false) }
+                    }
+                    allRow(audit)
+                    breachesRow.padding(.top, 12)
                 } else {
                     ProgressView("Revisando contraseñas…")
                         .frame(maxWidth: .infinity, minHeight: 300)
                 }
             }
             .padding(.horizontal, Theme.gutter)
+            .padding(.top, 8)
             .padding(.bottom, 120)
         }
         .background(HushBackground())
         .navigationTitle("Auditoría")
+        .navigationDestination(for: Category.self) { AuditListScreen(category: $0) }
         .navigationDestination(for: UUID.self) { EntryDetailView(id: $0) }
     }
 
-    private func summary(_ audit: Audit) -> some View {
-        GlassEffectContainer(spacing: 10) {
-            VStack(spacing: 10) {
-                tile(.pwned, audit: audit, wide: true)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach([Category.reused, .similar, .weak, .expired]) { tile($0, audit: audit, wide: false) }
-                }
-            }
-        }
-        .padding(.top, 8)
-    }
-
-    /// Tarjeta de cristal con el número de entradas de una categoría. Tocarla filtra la lista.
+    /// Tarjeta con el número de entradas de una categoría. Tocarla abre la lista.
     private func tile(_ tile: Category, audit: Audit, wide: Bool) -> some View {
         let count = tile.ids(audit).count
-        let active = category == tile
         let alert = count > 0 && tile == .pwned
-        return Button {
-            withAnimation(Theme.spring) { category = active ? .all : tile }
-        } label: {
+        return NavigationLink(value: tile) {
             HStack(alignment: wide ? .center : .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: wide ? 2 : 8) {
+                VStack(alignment: .leading, spacing: wide ? 4 : 10) {
                     Image(systemName: tile.symbol)
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(alert ? Theme.red : Theme.text)
+                        .foregroundStyle(alert ? Theme.red : Theme.textSecondary)
                     if wide {
-                        Text(tile.title).font(.headline)
+                        Text(tile.title).font(.headline).foregroundStyle(Theme.text)
                         Text(checkingText).font(.footnote).foregroundStyle(Theme.textSecondary)
                     } else {
-                        Text("\(count)").font(.title2.weight(.bold).monospacedDigit()).contentTransition(.numericText())
+                        Text("\(count)").font(.title2.weight(.bold).monospacedDigit()).foregroundStyle(Theme.text)
+                            .contentTransition(.numericText())
                         Text(tile.title).font(.subheadline).foregroundStyle(Theme.textSecondary)
                     }
                 }
@@ -106,19 +96,33 @@ struct AuditScreen: View {
                         .contentTransition(.numericText())
                 }
             }
-            .padding(14)
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous).fill(Theme.backgroundSubtle))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
         }
-        .buttonStyle(.plain)
-        .glassEffect(active ? .regular.tint(Theme.text.opacity(0.12)).interactive() : .regular.interactive(),
-                     in: RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
+        .buttonStyle(TilePressStyle())
         .accessibilityLabel("\(tile.title): \(count)")
-        .accessibilityAddTraits(active ? .isSelected : [])
+    }
+
+    private func allRow(_ audit: Audit) -> some View {
+        NavigationLink(value: Category.all) {
+            HStack {
+                Text("Ver todas con problemas").foregroundStyle(Theme.text)
+                Spacer()
+                Text("\(Category.all.ids(audit).count)").monospacedDigit().foregroundStyle(Theme.textSecondary)
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.textTertiary)
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous).fill(Theme.backgroundSubtle))
+            .contentShape(RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
+        }
+        .buttonStyle(TilePressStyle())
     }
 
     private var checkingText: String {
         if !model.checkBreaches { return "Sin comprobar" }
-        return model.pwnedChecking ? "Comprobando…" : "Contraseñas que han salido en filtraciones"
+        return model.pwnedChecking ? "Comprobando…" : "En filtraciones conocidas"
     }
 
     @ViewBuilder private var breachesRow: some View {
@@ -127,7 +131,7 @@ struct AuditScreen: View {
             Toggle(isOn: $model.checkBreaches) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Buscar en filtraciones")
-                    Text(model.pwnedChecking ? "Comprobando…" : "Solo se envían 5 caracteres de la huella de cada contraseña, nunca la contraseña.")
+                    Text("Nunca se envía la contraseña.")
                         .font(.footnote)
                         .foregroundStyle(Theme.textSecondary)
                 }
@@ -136,50 +140,60 @@ struct AuditScreen: View {
             .padding(16)
         }
     }
+}
 
-    private func list(_ audit: Audit) -> some View {
-        let ids = category.ids(audit)
+/// Entradas de una categoría de la auditoría.
+struct AuditListScreen: View {
+    @Environment(AppModel.self) private var model
+    let category: AuditScreen.Category
+
+    var body: some View {
+        let audit = model.audit
+        let ids = audit.map { category.ids($0) } ?? []
         let entries = (model.vault?.root.allEntries(excluding: model.excluded) ?? [])
             .filter { ids.contains($0.uuid) }
             .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
-        return VStack(spacing: 6) {
-            SectionLabel(text: category == .all ? "Con problemas" : category.title)
-            if entries.isEmpty {
-                Card {
-                    Label("Todo en orden", systemImage: "checkmark.seal")
-                        .font(.body.weight(.medium))
-                        .foregroundStyle(Theme.green)
-                        .frame(maxWidth: .infinity)
-                        .padding(24)
-                }
-            } else {
-                Card {
-                    ForEach(Array(entries.enumerated()), id: \.element.uuid) { index, entry in
-                        NavigationLink(value: entry.uuid) {
-                            HStack(alignment: .top, spacing: 12) {
-                                EntryAvatar(title: entry.title, icon: model.icon(for: entry))
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(entry.title.isEmpty ? "Sin título" : entry.title)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(Theme.text)
-                                    ForEach(audit.issues(for: entry.uuid).filter { !$0.contains("2FA") }, id: \.self) { issue in
-                                        Text(issue)
-                                            .font(.footnote)
-                                            .foregroundStyle(audit.pwned[entry.uuid] != nil && issue.contains("filtraciones") ? Theme.red : Theme.textSecondary)
-                                    }
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.textTertiary)
+        List {
+            ForEach(entries, id: \.uuid) { entry in
+                NavigationLink(value: entry.uuid) {
+                    HStack(alignment: .top, spacing: 12) {
+                        EntryAvatar(title: entry.title, icon: model.icon(for: entry))
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(entry.title.isEmpty ? "Sin título" : entry.title)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(Theme.text)
+                            ForEach(audit?.issues(for: entry.uuid).filter { !$0.contains("2FA") } ?? [], id: \.self) { issue in
+                                Text(issue)
+                                    .font(.footnote)
+                                    .foregroundStyle(audit?.pwned[entry.uuid] != nil && issue.contains("filtraciones") ? Theme.red : Theme.textSecondary)
                             }
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .contentShape(Rectangle())
                         }
-                        .buttonStyle(RowPressStyle())
                     }
+                    .padding(.vertical, 4)
                 }
+                .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
+            }
+            if entries.isEmpty {
+                ContentUnavailableView("Todo en orden", systemImage: "checkmark.seal",
+                                       description: Text("No hay contraseñas en este apartado."))
+                    .listRowBackground(Color.clear)
             }
         }
-        .animation(Theme.spring, value: category)
+        .scrollContentBackground(.hidden)
+        .background(HushBackground())
+        .navigationTitle(category == .all ? "Con problemas" : category.title)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Al pulsar una tarjeta se hunde un poco.
+struct TilePressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.98 : 1)
+            .animation(.spring(response: 0.2, dampingFraction: 1), value: configuration.isPressed)
     }
 }

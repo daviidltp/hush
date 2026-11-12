@@ -48,6 +48,7 @@ struct RootView: View {
         .animation(Theme.spring, value: model.vault == nil)
         .animation(.easeOut(duration: 0.15), value: scenePhase)
         .tint(Theme.text)
+        .background(HapticTaps())
         .onChange(of: scenePhase) { _, phase in model.scenePhaseChanged(phase) }
         .alert(item: $model.alert) { alert in
             if alert.reload {

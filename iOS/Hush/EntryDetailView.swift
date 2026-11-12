@@ -21,6 +21,7 @@ struct EntryDetailView: View {
             }
         }
         .background(HushBackground())
+        .onAppear { model.noteOpened(id) }
     }
 
     private func content(_ located: LocatedEntry) -> some View {
@@ -72,6 +73,7 @@ struct EntryDetailView: View {
                 Button(entry.isFavorite ? "Quitar de favoritos" : "Favorito", systemImage: entry.isFavorite ? "star.fill" : "star") {
                     model.mutate { $0.toggleFavorite(id) }
                 }
+                .tint(entry.isFavorite ? Theme.amber : Theme.text)
                 .sensoryFeedback(.selection, trigger: entry.isFavorite)
             }
             ToolbarItem(placement: .topBarTrailing) {

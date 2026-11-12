@@ -7,6 +7,7 @@ struct MainView: View {
     @Environment(AppModel.self) private var model
     @State private var tab: AppTab = .entries
     @State private var query = ""
+    @FocusState private var searchFocused: Bool
 
     enum AppTab: Hashable { case entries, generator, audit, settings, search }
 
@@ -32,9 +33,14 @@ struct MainView: View {
                         .navigationDestination(for: UUID.self) { EntryDetailView(id: $0) }
                 }
                 .searchable(text: $query, prompt: "Buscar en \(model.openDatabase?.name ?? "la base")")
+                .searchFocused($searchFocused)
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
+        // Al entrar en Buscar, el teclado sale ya con la barra lista para escribir.
+        .onChange(of: tab) { _, new in
+            if new == .search { Task { try? await Task.sleep(for: .milliseconds(150)); searchFocused = true } }
+        }
         .toast($model.toast)
         .task(id: model.version) { model.refreshAudit() }
     }
@@ -55,6 +61,8 @@ struct EntriesTab: View {
     @Environment(AppModel.self) private var model
     @State private var filter: EntryFilter = .all
     @State private var editing: EntryDraft?
+    @State private var creatingFolder = false
+    @State private var folderName = ""
 
     var body: some View {
         NavigationStack {
@@ -66,10 +74,30 @@ struct EntriesTab: View {
                         Button("Bloquear", systemImage: "lock") { model.lock(manual: true) }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Nueva entrada", systemImage: "plus") { newEntry() }
+                        Button("Nueva carpeta", systemImage: "folder.badge.plus") { folderName = ""; creatingFolder = true }
+                    }
+                    ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button { newEntry() } label: {
+                            Image(systemName: "plus").fontWeight(.semibold).foregroundStyle(Theme.onPrimary)
+                        }
+                        .buttonStyle(.glassProminent)
+                        .tint(Theme.primary)
+                        .accessibilityLabel("Nueva entrada")
                     }
                 }
                 .sheet(item: $editing) { EntryEditorView(draft: $0) }
+                .alert("Nueva carpeta", isPresented: $creatingFolder) {
+                    TextField("Nombre", text: $folderName)
+                    Button("Cancelar", role: .cancel) {}
+                    Button("Crear") {
+                        if let id = model.createFolder(named: folderName, in: currentGroup) {
+                            withAnimation(Theme.spring) { filter = .group(id) }
+                        }
+                    }
+                } message: {
+                    Text(currentGroup.flatMap { model.vault?.root.group($0)?.displayName }.map { "Dentro de «\($0)»." } ?? "")
+                }
         }
     }
 
@@ -88,6 +116,12 @@ struct EntriesTab: View {
         case .favorites: return "Favoritos"
         case let .group(id): return model.vault?.root.group(id)?.displayName ?? "Grupo"
         }
+    }
+
+    /// Carpeta que se está viendo (donde se crean entradas y carpetas nuevas).
+    private var currentGroup: UUID? {
+        if case let .group(id) = filter, id != model.vault?.recycleBinUUID { return id }
+        return nil
     }
 
     private func newEntry() {
@@ -117,7 +151,8 @@ struct EntryList: View {
                 GroupChips(filter: $filter)
                     .textCase(nil)
                     .listRowInsets(EdgeInsets())
-                    .padding(.bottom, 6)
+                    .padding(.top, 4)
+                    .padding(.bottom, 14)
             }
             if entries.isEmpty {
                 ContentUnavailableView(filter == .favorites ? "Sin favoritos" : "No hay entradas",
@@ -137,20 +172,47 @@ struct EntryList: View {
 struct GroupChips: View {
     @Environment(AppModel.self) private var model
     @Binding var filter: EntryFilter
+    @State private var renaming: UUID?
+    @State private var deleting: UUID?
+    @State private var newName = ""
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 chip("Todas", .all)
                 chip("Favoritos", .favorites)
                 ForEach(groups, id: \.uuid) { group in
-                    chip(group.uuid == model.vault?.recycleBinUUID ? "Papelera" : group.displayName, .group(group.uuid))
+                    let isBin = group.uuid == model.vault?.recycleBinUUID
+                    chip(isBin ? "Papelera" : group.displayName, .group(group.uuid))
+                        .contextMenu {
+                            if !isBin {
+                                Button("Renombrar", systemImage: "pencil") { newName = group.name ?? ""; renaming = group.uuid }
+                                Button("Borrar carpeta", systemImage: "trash", role: .destructive) { deleting = group.uuid }
+                            }
+                        }
                 }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
         }
         .scrollClipDisabled()
+        .onChange(of: filter) { _, new in withAnimation(Theme.spring) { proxy.scrollTo(new, anchor: .center) } }
+        }
+        .alert("Renombrar carpeta", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Nombre", text: $newName)
+            Button("Cancelar", role: .cancel) {}
+            Button("Guardar") { if let id = renaming { model.renameFolder(id, to: newName) } }
+        }
+        .confirmationDialog("¿Borrar la carpeta?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button("Borrar", role: .destructive) {
+                guard let id = deleting else { return }
+                if filter == .group(id) { filter = .all }
+                model.deleteFolder(id)
+            }
+        } message: {
+            Text("Se mueve a la papelera con todo lo que tiene dentro.")
+        }
     }
 
     private var groups: [KDBX.Group] {
@@ -166,6 +228,7 @@ struct GroupChips: View {
         FilterChip(title: title, selected: filter == value) {
             withAnimation(Theme.spring) { filter = value }
         }
+        .id(value)
     }
 }
 
@@ -183,7 +246,7 @@ struct EntryRow: View {
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
                     if entry.isFavorite {
-                        Image(systemName: "star.fill").font(.caption2).foregroundStyle(Theme.textTertiary)
+                        Image(systemName: "star.fill").font(.caption2).foregroundStyle(Theme.amber)
                             .accessibilityLabel("Favorito")
                     }
                 }
@@ -279,21 +342,48 @@ struct SearchScreen: View {
     @State private var editing: EntryDraft?
 
     var body: some View {
+        let searching = !query.trimmingCharacters(in: .whitespaces).isEmpty
         let results = model.search(query)
+        let recents = searching ? [] : model.recentEntries
+        let favorites = searching ? [] : model.entries(in: nil).filter { $0.isFavorite && !recents.map(\.uuid).contains($0.uuid) }
         List {
-            ForEach(results, id: \.uuid) { entry in
-                NavigationLink(value: entry.uuid) { EntryRow(entry: entry) }
-                    .listRowBackground(Theme.backgroundSubtle)
-                .listRowSeparator(.hidden)
-                    .entryActions(entry, editing: $editing)
-            }
-            if !query.isEmpty, results.isEmpty {
-                ContentUnavailableView.search(text: query).listRowBackground(Color.clear)
+            if searching {
+                rows(results)
+                if results.isEmpty {
+                    ContentUnavailableView.search(text: query).listRowBackground(Color.clear)
+                }
+            } else if recents.isEmpty && favorites.isEmpty {
+                ContentUnavailableView("Busca en tus contraseñas", systemImage: "magnifyingglass",
+                                       description: Text("Por nombre, usuario, web, notas o etiquetas."))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .padding(.top, 60)
+            } else {
+                if !recents.isEmpty {
+                    Section { rows(recents) } header: { header("Recientes") }
+                }
+                if !favorites.isEmpty {
+                    Section { rows(favorites) } header: { header("Favoritos") }
+                }
             }
         }
         .scrollContentBackground(.hidden)
+        .contentMargins(.top, 12, for: .scrollContent)
         .background(HushBackground())
         .navigationTitle("Buscar")
         .sheet(item: $editing) { EntryEditorView(draft: $0) }
+    }
+
+    private func rows(_ entries: [KDBX.Entry]) -> some View {
+        ForEach(entries, id: \.uuid) { entry in
+            NavigationLink(value: entry.uuid) { EntryRow(entry: entry) }
+                .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
+                .entryActions(entry, editing: $editing)
+        }
+    }
+
+    private func header(_ text: String) -> some View {
+        ListHeader(text)
     }
 }
