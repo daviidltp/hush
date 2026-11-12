@@ -5,6 +5,7 @@ import SwiftUI
 /// Ajustes → Navegadores: cómo instalar la extensión y qué navegadores están conectados.
 struct BrowserSettings: View {
     @State private var paired = BrowserBridge.paired
+    @State private var passkeys = Preferences.passkeysEnabled
 
     var body: some View {
         Form {
@@ -25,6 +26,14 @@ struct BrowserSettings: View {
                 Text("Instalar la extensión")
             } footer: {
                 Text("En las webs, al pulsar en el campo de usuario o contraseña salen tus cuentas de esa web. ⇧⌘L rellena con la última que usaste. Si la cuenta tiene 2FA, el código queda copiado.")
+                    .font(.ui(11)).foregroundStyle(Theme.textTertiary)
+            }
+
+            Section {
+                Toggle("Guardar y usar claves de acceso (passkeys) con Hush", isOn: $passkeys)
+                    .onChange(of: passkeys) { Preferences.passkeysEnabled = passkeys }
+            } footer: {
+                Text("Cuando una web te ofrezca crear una clave de acceso o entrar con ella, Hush lo hará con la clave guardada en tu base (te pedirá confirmación cada vez). Se guardan en el formato de las apps KeePass, así que también sirven en el móvil.")
                     .font(.ui(11)).foregroundStyle(Theme.textTertiary)
             }
 

@@ -227,6 +227,8 @@ final class BrowserBridge {
         guard !model.openVaults.isEmpty else { return ["locked": true] }
 
         switch type {
+        case "passkey-create", "passkey-get":
+            return await passkey(type, message, model: model)
         case "list":
             let page = message["url"] as? String ?? ""
             return ["entries": entries(in: model) { vault, entry in BrowserMatch.matches(page: page, entry: entry, resolve: { vault.resolve($0) }) }]
