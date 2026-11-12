@@ -46,9 +46,25 @@ enum Bookmarks {
     }
 }
 
-/// Ajustes de la app (no secretos).
+/// Grupo de apps compartido con la extensión de autorrelleno: lista de bases, ajustes y registros de Face ID.
+enum AppGroup {
+    static let id = "group.com.david.hush"
+
+    static var container: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id)
+    }
+
+    /// Prepara lo compartido. Se llama al arrancar la app y la extensión.
+    static func configure() {
+        if let container {
+            QuickUnlock.directoryOverride = container.appendingPathComponent("Library/Boveda/FaceID", isDirectory: true)
+        }
+    }
+}
+
+/// Ajustes de la app (no secretos). Viven en el grupo de apps para que la extensión los lea.
 enum Preferences {
-    private static let defaults = UserDefaults.standard
+    private static let defaults = UserDefaults(suiteName: AppGroup.id) ?? .standard
 
     static var databases: [SavedDatabase] {
         get { (defaults.data(forKey: "databases")).flatMap { try? JSONDecoder().decode([SavedDatabase].self, from: $0) } ?? [] }

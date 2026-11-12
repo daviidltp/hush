@@ -66,40 +66,59 @@ struct AuditScreen: View {
     }
 
     private func summary(_ audit: Audit) -> some View {
-        let tiles = Category.allCases.filter { $0 != .all }
-        return GlassEffectContainer(spacing: 10) {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(tiles) { tile in
-                    let count = tile.ids(audit).count
-                    let active = category == tile
-                    Button {
-                        withAnimation(Theme.spring) { category = active ? .all : tile }
-                    } label: {
-                        VStack(alignment: .leading, spacing: 10) {
-                            Image(systemName: tile.symbol)
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(count > 0 && tile == .pwned ? Theme.red : Theme.text)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("\(count)")
-                                    .font(.title.weight(.bold).monospacedDigit())
-                                    .contentTransition(.numericText())
-                                Text(tile.title)
-                                    .font(.subheadline)
-                                    .foregroundStyle(Theme.textSecondary)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(active ? .regular.tint(Theme.text.opacity(0.12)).interactive() : .regular.interactive(),
-                                 in: RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
-                    .accessibilityLabel("\(tile.title): \(count)")
-                    .accessibilityAddTraits(active ? .isSelected : [])
+        GlassEffectContainer(spacing: 10) {
+            VStack(spacing: 10) {
+                tile(.pwned, audit: audit, wide: true)
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    ForEach([Category.reused, .similar, .weak, .expired]) { tile($0, audit: audit, wide: false) }
                 }
             }
         }
         .padding(.top, 8)
+    }
+
+    /// Tarjeta de cristal con el número de entradas de una categoría. Tocarla filtra la lista.
+    private func tile(_ tile: Category, audit: Audit, wide: Bool) -> some View {
+        let count = tile.ids(audit).count
+        let active = category == tile
+        let alert = count > 0 && tile == .pwned
+        return Button {
+            withAnimation(Theme.spring) { category = active ? .all : tile }
+        } label: {
+            HStack(alignment: wide ? .center : .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: wide ? 2 : 8) {
+                    Image(systemName: tile.symbol)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(alert ? Theme.red : Theme.text)
+                    if wide {
+                        Text(tile.title).font(.headline)
+                        Text(checkingText).font(.footnote).foregroundStyle(Theme.textSecondary)
+                    } else {
+                        Text("\(count)").font(.title2.weight(.bold).monospacedDigit()).contentTransition(.numericText())
+                        Text(tile.title).font(.subheadline).foregroundStyle(Theme.textSecondary)
+                    }
+                }
+                Spacer(minLength: 0)
+                if wide {
+                    Text("\(count)")
+                        .font(.largeTitle.weight(.bold).monospacedDigit())
+                        .foregroundStyle(alert ? Theme.red : Theme.text)
+                        .contentTransition(.numericText())
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(active ? .regular.tint(Theme.text.opacity(0.12)).interactive() : .regular.interactive(),
+                     in: RoundedRectangle(cornerRadius: Theme.radiusLarge, style: .continuous))
+        .accessibilityLabel("\(tile.title): \(count)")
+        .accessibilityAddTraits(active ? .isSelected : [])
+    }
+
+    private var checkingText: String {
+        if !model.checkBreaches { return "Sin comprobar" }
+        return model.pwnedChecking ? "Comprobando…" : "Contraseñas que han salido en filtraciones"
     }
 
     @ViewBuilder private var breachesRow: some View {

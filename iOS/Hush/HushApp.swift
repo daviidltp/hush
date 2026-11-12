@@ -3,7 +3,12 @@ import UniformTypeIdentifiers
 
 @main
 struct HushApp: App {
-    @State private var model = AppModel()
+    @State private var model: AppModel
+
+    init() {
+        AppGroup.configure()
+        _model = State(initialValue: AppModel())
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -53,29 +58,5 @@ struct RootView: View {
                 Alert(title: Text(alert.title), message: Text(alert.message), dismissButton: .default(Text("OK")))
             }
         }
-    }
-}
-
-/// Tapa la pantalla cuando la app no está delante (selector de apps, centro de control…).
-struct PrivacyCover: View {
-    var body: some View {
-        ZStack {
-            HushBackground()
-            AppMark(size: 72)
-        }
-    }
-}
-
-/// Marca de la app: llave sobre un cuadrado redondeado, como el icono.
-struct AppMark: View {
-    var size: CGFloat = 76
-
-    var body: some View {
-        Image(systemName: "key.horizontal.fill")
-            .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(Theme.onPrimary)
-            .frame(width: size, height: size)
-            .background(RoundedRectangle(cornerRadius: size * 0.28, style: .continuous).fill(Theme.primary))
-            .accessibilityHidden(true)
     }
 }

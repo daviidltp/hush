@@ -1,3 +1,4 @@
+import AuthenticationServices
 import BovedaCore
 import SwiftUI
 
@@ -5,6 +6,7 @@ import SwiftUI
 struct SettingsScreen: View {
     @Environment(AppModel.self) private var model
     @State private var confirmEmptyBin = false
+    @State private var autoFillOn = false
 
     var body: some View {
         @Bindable var model = model
@@ -38,6 +40,24 @@ struct SettingsScreen: View {
                 Text("Seguridad")
             } footer: {
                 Text("La clave para \(model.biometryName) se guarda cifrada con el chip seguro del iPhone. Si cambian las caras o huellas registradas, hay que volver a escribir la contraseña maestra.")
+            }
+            .listRowBackground(Theme.backgroundSubtle)
+
+            Section {
+                if autoFillOn {
+                    Label("Activado", systemImage: "checkmark.circle.fill").foregroundStyle(Theme.green)
+                } else {
+                    Button("Activar autorrelleno", systemImage: "key.viewfinder") {
+                        Task {
+                            _ = try? await ASSettingsHelper.requestToTurnOnCredentialProviderExtension()
+                            await refreshAutoFill()
+                        }
+                    }
+                }
+            } header: {
+                Text("Autorrelleno")
+            } footer: {
+                Text("Rellena contraseñas y códigos 2FA en Safari y en otras apps desde la llave del teclado. Funciona con bases guardadas en iCloud Drive u otras ubicaciones de Archivos.")
             }
             .listRowBackground(Theme.backgroundSubtle)
 
@@ -79,10 +99,15 @@ struct SettingsScreen: View {
         .scrollContentBackground(.hidden)
         .background(HushBackground())
         .navigationTitle("Ajustes")
+        .task { await refreshAutoFill() }
         .confirmationDialog("¿Vaciar la papelera?", isPresented: $confirmEmptyBin, titleVisibility: .visible) {
             Button("Vaciar", role: .destructive) { model.mutate { $0.emptyRecycleBin() } }
         } message: {
             Text("Lo que hay dentro se borra para siempre.")
         }
+    }
+
+    private func refreshAutoFill() async {
+        autoFillOn = await ASCredentialIdentityStore.shared.state().isEnabled
     }
 }

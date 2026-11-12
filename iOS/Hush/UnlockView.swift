@@ -6,7 +6,7 @@ struct UnlockView: View {
     @Environment(AppModel.self) private var model
     let db: SavedDatabase
 
-    @State private var password = ""
+    @State private var password = UnlockView.testPassword
     @State private var reveal = false
     @State private var showDatabases = false
     @State private var pickingKeyFile = false
@@ -14,6 +14,15 @@ struct UnlockView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var faceID: Bool { model.canUseFaceID(db) }
+
+    /// Solo en la versión de pruebas: `-HushTestPassword demo1234` al abrir rellena la contraseña de la base demo.
+    static var testPassword: String {
+        #if DEBUG
+        return UserDefaults.standard.string(forKey: "HushTestPassword") ?? ""
+        #else
+        return ""
+        #endif
+    }
     private var canSubmit: Bool { !model.busy && (!password.isEmpty || db.keyFileBookmark != nil) }
 
     var body: some View {

@@ -46,8 +46,12 @@ public enum QuickUnlock {
         var created: Date
     }
 
+    /// Carpeta de los registros. En el iPhone se cambia por la del grupo de apps, para que la extensión
+    /// de autorrelleno pueda usar Face ID con las mismas bases.
+    nonisolated(unsafe) public static var directoryOverride: URL?
+
     static var directory: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        directoryOverride ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Boveda/TouchID", isDirectory: true)
     }
 
