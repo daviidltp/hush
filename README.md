@@ -17,6 +17,7 @@ A native macOS password manager (Swift and SwiftUI) built on **KDBX** files, the
 - Audit: breached passwords (Have I Been Pwned with k-anonymity: only 5 characters of the hash leave your Mac), reused, similar and weak passwords, and sites that support 2FA.
 - Quick search with a global shortcut (⇧⌘Space) and a menu bar icon.
 - Browser autofill (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox and Zen).
+- Passkeys: create them and sign in with them from the browser, confirming each time in Hush. They are stored in the KeePass passkey format (`KPEX_PASSKEY_*`), so they also work in compatible mobile apps.
 - Import from other apps: CSV or unencrypted JSON exports from Bitwarden, 1Password, Apple Passwords, Proton Pass, Chrome/Edge/Brave, Firefox and KeePass-compatible apps (plus any CSV with a header row). Folders, favorites, tags, 2FA and cards are kept; duplicates are skipped.
 - Export to CSV or .zip with attachments, with a warning that they are not encrypted.
 - Emergency kit: a printable PDF with everything needed to recover the vault and a blank space to write the master password by hand.
@@ -49,6 +50,7 @@ The extension is not in the Chrome or Firefox stores yet. Until then, any progra
 - Locking wipes the key and data from memory, the clipboard (if Hush put something there) and opened attachments.
 - The extension stores no passwords: it asks Hush at fill time. It only offers accounts for the open site (registrable domain according to the [Public Suffix List](https://publicsuffix.org)), never sends an https password to an http page and ignores events synthesized by the page.
 - Hush only accepts the bridge when it was launched by a browser signed by its vendor and is connected directly to it. Each browser is paired with your permission.
+- Passkeys: the origin comes from the browser, not the page; the site can only use passkeys for its own domain (never a public suffix), only over https, only in the top frame, and every creation or sign-in asks for confirmation in Hush. The private key is stored as a protected field in the vault.
 - What Hush does **not** protect against: a Mac already infected with malware running as your user.
 
 Found a security issue? See [SECURITY.md](SECURITY.md). Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -117,6 +117,19 @@ async function handle(message, sender) {
         return call("fill", { uuid: message.uuid, vault: message.vault, url, explicit: false });
       case "unlock":
         return call("unlock");
+      case "passkey-create":
+      case "passkey-get": {
+        // Solo la página principal. El origen sale de la dirección que da el navegador, no de la página.
+        if (sender.frameId !== 0) return { error: "bad-request" };
+        let origin;
+        try {
+          origin = new URL(url).origin;
+        } catch {
+          return { error: "bad-request" };
+        }
+        // Hasta dos minutos: Hush espera a que confirmes (o a que desbloquees la base).
+        return call(message.type, { origin, options: message.options ?? {} }, 125000);
+      }
       default:
         return { error: "bad-request" };
     }
