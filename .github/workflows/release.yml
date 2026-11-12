@@ -1,0 +1,133 @@
+name: Release
+
+# Al subir una etiqueta vX.Y.Z (igual que el archivo VERSION) se compila Hush, se firma con Developer ID,
+# Apple la notariza y queda un borrador de versión en GitHub con el .dmg, el appcast de Sparkle y los hashes.
+# El borrador no lo ve nadie hasta que se publica a mano.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Firmar, notarizar y preparar la versión
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      SIGN_IDENTITY: "Developer ID Application: David Lopez (T5TC78YWL2)"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Versión
+        id: version
+        run: |
+          VERSION=$(cat VERSION)
+          [[ "v$VERSION" == "$GITHUB_REF_NAME" ]] || { echo "La etiqueta $GITHUB_REF_NAME no coincide con VERSION ($VERSION)"; exit 1; }
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Tests
+        run: swift test
+
+      - name: Certificado en un llavero temporal
+        env:
+          P12: ${{ secrets.DEVELOPER_ID_P12 }}
+          P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/release.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+          echo "$P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "$SIGN_IDENTITY"
+
+      - name: Compilar y firmar
+        run: TIMESTAMP=--timestamp UPDATES=1 INSTALL=0 ./build-app.sh
+
+      - name: Notarizar la app
+        env:
+          NOTARY_KEY: ${{ secrets.NOTARY_KEY }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          echo "$NOTARY_KEY" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          ditto -c -k --keepParent build/Hush.app "$RUNNER_TEMP/Hush.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/Hush.zip" --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --wait
+          xcrun stapler staple build/Hush.app
+          spctl -a -vv build/Hush.app
+
+      - name: Crear y notarizar el .dmg
+        env:
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist "$RUNNER_TEMP/dmg"
+          ditto build/Hush.app "$RUNNER_TEMP/dmg/Hush.app"
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          DMG="dist/Hush-$VERSION.dmg"
+          hdiutil create -volname Hush -srcfolder "$RUNNER_TEMP/dmg" -fs HFS+ -format UDZO "$DMG"
+          codesign --sign "$SIGN_IDENTITY" --timestamp "$DMG"
+          xcrun notarytool submit "$DMG" --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --wait
+          xcrun stapler staple "$DMG"
+          spctl -a -vv -t open --context context:primary-signature "$DMG"
+          rm "$RUNNER_TEMP/notary.p8"
+
+      - name: Appcast de Sparkle y hashes
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          DMG="dist/Hush-$VERSION.dmg"
+          SIGNATURE=$(echo "$SPARKLE_PRIVATE_KEY" | .build/artifacts/sparkle/Sparkle/bin/sign_update --ed-key-file - "$DMG")
+          URL="https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/Hush-$VERSION.dmg"
+          cat > dist/appcast.xml <<XML
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+            <channel>
+              <title>Hush</title>
+              <item>
+                <title>Hush $VERSION</title>
+                <pubDate>$(LC_ALL=C date -u "+%a, %d %b %Y %H:%M:%S +0000")</pubDate>
+                <sparkle:version>$VERSION</sparkle:version>
+                <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>
+                <link>https://github.com/$GITHUB_REPOSITORY/releases/tag/v$VERSION</link>
+                <enclosure url="$URL" type="application/octet-stream" $SIGNATURE />
+              </item>
+            </channel>
+          </rss>
+          XML
+          (cd dist && shasum -a 256 "Hush-$VERSION.dmg" > SHA256SUMS)
+          cat dist/appcast.xml dist/SHA256SUMS
+
+      - name: Atestación de origen
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/Hush-*.dmg
+
+      - name: Borrador de versión
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release create "v$VERSION" dist/Hush-$VERSION.dmg dist/appcast.xml dist/SHA256SUMS \
+            --draft --title "Hush $VERSION" --generate-notes --verify-tag
+
+      - name: Limpiar el llavero
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/release.keychain-db" || true

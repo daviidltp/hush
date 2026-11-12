@@ -12,6 +12,8 @@ let package = Package(
     dependencies: [
         // Copia local de KDBXKit (commit e9b8839) con un parche en las fechas; ver Vendor/KDBXKit/PARCHE-BOVEDA.md.
         .package(path: "Vendor/KDBXKit"),
+        // Actualizaciones automáticas firmadas (EdDSA) desde las versiones de GitHub.
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.0"),
     ],
     targets: [
         .target(
@@ -21,7 +23,7 @@ let package = Package(
         ),
         .executableTarget(
             name: "Boveda",
-            dependencies: ["BovedaCore", .product(name: "KDBXKit", package: "KDBXKit")],
+            dependencies: ["BovedaCore", .product(name: "KDBXKit", package: "KDBXKit"), .product(name: "Sparkle", package: "Sparkle")],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         // Puente de mensajería nativa para la extensión del navegador (va dentro de la app como «hush-bridge»).
