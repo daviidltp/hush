@@ -64,20 +64,20 @@ extension AppModel {
         let permanent = ids.filter(deletesPermanently).count
         let moved = ids.count - permanent
         if permanent > 0 {
-            let title = moved == 0 ? "¿Eliminar \(permanent) entradas para siempre?" : "¿Borrar \(ids.count) entradas?"
-            let detail = moved == 0 ? "No irán a la papelera." : "\(moved) irán a la papelera y \(permanent) se eliminarán para siempre."
+            let title = moved == 0 ? L("¿Eliminar \(permanent) entradas para siempre?") : L("¿Borrar \(ids.count) entradas?")
+            let detail = moved == 0 ? L("No irán a la papelera.") : L("\(moved) irán a la papelera y \(permanent) se eliminarán para siempre.")
             guard confirmPermanentDelete(title, detail: detail) else { return }
         }
         mutate { vault in for id in ids { vault.deleteEntry(id) } }
         selectedEntryID = visibleEntries.first?.uuid
-        showToast([moved > 0 ? "\(moved) movidas a la papelera" : nil, permanent > 0 ? "\(permanent) eliminadas para siempre" : nil]
+        showToast([moved > 0 ? L("\(moved) movidas a la papelera") : nil, permanent > 0 ? L("\(permanent) eliminadas para siempre") : nil]
             .compactMap { $0 }.joined(separator: " · "))
     }
 
     func moveSelection(to group: UUID) {
         let ids = selectedIDs
         mutate { vault in for id in ids { vault.moveEntry(id, to: group) } }
-        showToast("\(ids.count) entradas movidas")
+        showToast(L("\(ids.count) entradas movidas"))
     }
 
     func setFavorite(_ favorite: Bool, for ids: [UUID]) {
@@ -91,37 +91,37 @@ extension AppModel {
 
 extension AppModel {
     func copyUserAndPassword(_ entry: KDBX.Entry) {
-        copy("\(value(FieldKey.userName, of: entry))\n\(value(FieldKey.password, of: entry))", label: "Usuario y contraseña", entry: entry.uuid)
+        copy("\(value(FieldKey.userName, of: entry))\n\(value(FieldKey.password, of: entry))", label: L("Usuario y contraseña"), entry: entry.uuid)
     }
 
     /// Todos los campos como texto (sin los ocultos que no sean la contraseña).
     func copyAllFields(_ entry: KDBX.Entry) {
-        var lines: [String] = ["Título: \(entry.title)"]
-        let fields: [(String, String)] = [("Usuario", FieldKey.userName), ("Contraseña", FieldKey.password), ("Web", FieldKey.url)]
+        var lines: [String] = [L("Título: \(entry.title)")]
+        let fields: [(String, String)] = [(L("Usuario"), FieldKey.userName), (L("Contraseña"), FieldKey.password), (L("Web"), FieldKey.url)]
         for (label, key) in fields {
             let text = value(key, of: entry)
             if !text.isEmpty { lines.append("\(label): \(text)") }
         }
         for field in entry.customFields { lines.append("\(field.key): \(resolved(field.value.revealedString))") }
         if !entry.notes.isEmpty { lines.append("Notas:\n\(entry.notes)") }
-        copy(lines.joined(separator: "\n"), label: "Todos los campos", entry: entry.uuid)
+        copy(lines.joined(separator: "\n"), label: L("Todos los campos"), entry: entry.uuid)
     }
 
     func copyPasswordAndOpenURL(_ entry: KDBX.Entry) {
-        copy(value(FieldKey.password, of: entry), label: "Contraseña", entry: entry.uuid)
+        copy(value(FieldKey.password, of: entry), label: L("Contraseña"), entry: entry.uuid)
         if let url = URL.fromUserInput(value(FieldKey.url, of: entry)) { NSWorkspace.shared.open(url) }
     }
 
     /// Texto que, pegado en otra entrada, apunta a este campo y se actualiza solo.
     func copyReference(_ field: Character, of entry: KDBX.Entry) {
-        copy(FieldReference.make(field: field, to: entry), label: "Referencia", markUsed: false)
+        copy(FieldReference.make(field: field, to: entry), label: L("Referencia"), markUsed: false)
     }
 
     /// Copia la entrada entera (con adjuntos e icono) para pegarla en otra base o grupo.
     func copyEntry(_ id: UUID) {
         guard let package = vault?.package(id) else { return }
         entryClipboard = (package, package.entry.title)
-        showToast("Entrada copiada · pégala con ⌥⌘V en cualquier base")
+        showToast(L("Entrada copiada · pégala con ⌥⌘V en cualquier base"))
     }
 
     func pasteEntry() {
@@ -147,7 +147,7 @@ extension AppModel {
 
     func restoreHistory(_ index: Int, of id: UUID) {
         mutate { $0.restoreHistory(index, of: id) }
-        showToast("Versión restaurada · la de antes queda en el historial")
+        showToast(L("Versión restaurada · la de antes queda en el historial"))
     }
 
     func deleteHistory(_ index: Int, of id: UUID) {
@@ -157,7 +157,7 @@ extension AppModel {
     func pickIcon(for id: UUID) {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
-        panel.message = "Elige una imagen para el icono"
+        panel.message = L("Elige una imagen para el icono")
         guard panel.runModal() == .OK, let url = panel.url, let image = NSImage(contentsOf: url),
               let png = FaviconStore.pngThumbnail(image, size: 128) else { return }
         mutate { $0.setCustomIcon(png, for: id) }
@@ -166,7 +166,7 @@ extension AppModel {
     /// Guarda el logo de la web dentro de la base, así también se ve en el móvil.
     func useFaviconAsIcon(_ entry: KDBX.Entry) {
         guard let image = FaviconStore.shared.image(for: entry.url), let png = FaviconStore.pngThumbnail(image, size: 64) else {
-            showToast("Aún no hay logo para esta web")
+            showToast(L("Aún no hay logo para esta web"))
             return
         }
         mutate { $0.setCustomIcon(png, for: entry.uuid) }
@@ -179,7 +179,7 @@ extension AppModel {
         guard let vault else { return }
         if !Preferences.showFavicons { Preferences.showFavicons = true }
         let count = FaviconStore.shared.prefetch(vault.root.allEntries(excluding: vault.excludedFromBrowsing).map(\.url))
-        showToast(count == 0 ? "Ya están todos los logos" : "Descargando \(count) logos…")
+        showToast(count == 0 ? L("Ya están todos los logos") : L("Descargando \(count) logos…"))
     }
 }
 
@@ -190,29 +190,29 @@ extension AppModel {
     func export(only ids: Set<UUID>? = nil, withAttachments: Bool) {
         guard let vault else { return }
         let warning = NSAlert()
-        warning.messageText = "El archivo exportado no va cifrado"
-        warning.informativeText = "Cualquiera que lo abra verá tus contraseñas. Bórralo en cuanto termines de usarlo."
+        warning.messageText = L("El archivo exportado no va cifrado")
+        warning.informativeText = L("Cualquiera que lo abra verá tus contraseñas. Bórralo en cuanto termines de usarlo.")
         warning.alertStyle = .warning
-        warning.addButton(withTitle: "Exportar")
-        warning.addButton(withTitle: "Cancelar")
+        warning.addButton(withTitle: L("Exportar"))
+        warning.addButton(withTitle: L("Cancelar"))
         guard warning.runModal() == .alertFirstButtonReturn else { return }
 
         let panel = NSSavePanel()
-        let base = vault.name + (ids == nil ? "" : " (selección)")
+        let base = vault.name + (ids == nil ? "" : L(" (selección)"))
         panel.nameFieldStringValue = base + (withAttachments ? ".zip" : ".csv")
         panel.allowedContentTypes = [withAttachments ? .zip : .commaSeparatedText]
         guard panel.runModal() == .OK, let target = panel.url else { return }
         let snapshot = vault
         // Puede tardar: se hace en segundo plano para que la ventana siga respondiendo.
-        showToast("Exportando…")
+        showToast(L("Exportando…"))
         Task {
             do {
                 try await Task.detached(priority: .userInitiated) {
                     try Self.writeExport(snapshot, only: ids, csv: snapshot.csv(only: ids), base: base, to: target, withAttachments: withAttachments)
                 }.value
-                showToast("Exportado en \(target.lastPathComponent)")
+                showToast(L("Exportado en \(target.lastPathComponent)"))
             } catch {
-                alert = AlertMessage(title: "No se ha podido exportar", message: error.localizedDescription)
+                alert = AlertMessage(title: L("No se ha podido exportar"), message: error.localizedDescription)
             }
         }
     }
@@ -229,7 +229,7 @@ extension AppModel {
                 for entry in vault.root.allEntries(excluding: vault.excludedFromBrowsing) where ids?.contains(entry.uuid) ?? true {
                     let files = vault.attachments(of: entry)
                     guard !files.isEmpty else { continue }
-                    let safe = (entry.title.isEmpty ? "Sin título" : entry.title).replacingOccurrences(of: "/", with: "-")
+                    let safe = (entry.title.isEmpty ? L("Sin título") : entry.title).replacingOccurrences(of: "/", with: "-")
                     let dir = folder.appending(path: "Adjuntos/\(safe) (\(entry.uuid.uuidString.prefix(4)))", directoryHint: .isDirectory)
                     try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
                     for file in files {

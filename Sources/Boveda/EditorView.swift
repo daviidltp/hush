@@ -26,15 +26,15 @@ struct EntryEditorView: View {
                     switch draft.kind {
                     case .login:
                         VStack(spacing: 0) {
-                            EditRow("Usuario", focused: focus == .user) { userField }
+                            EditRow(L("Usuario"), focused: focus == .user) { userField }
                             Divider().padding(.horizontal, 14)
-                            EditRow("Contraseña", focused: focus == .password) { passwordField }
+                            EditRow(L("Contraseña"), focused: focus == .password) { passwordField }
                             Divider().padding(.horizontal, 14)
-                            EditRow("Web", focused: focus == .url) {
+                            EditRow(L("Web"), focused: focus == .url) {
                                 TextField("https://", text: $draft.url).focused($focus, equals: .url)
                             }
                             Divider().padding(.horizontal, 14)
-                            EditRow("Código 2FA", focused: focus == .otp) { otpField }
+                            EditRow(L("Código 2FA"), focused: focus == .otp) { otpField }
                         }
                         .card()
                     case .card:
@@ -42,16 +42,16 @@ struct EntryEditorView: View {
                                 expiry: draft.card[CardField.expiry] ?? "", title: draft.title)
                             .frame(maxWidth: .infinity)
                         VStack(spacing: 0) {
-                            cardRow("Número de tarjeta", CardField.number, placeholder: "0000 0000 0000 0000", mono: true)
+                            cardRow(L("Número de tarjeta"), CardField.number, placeholder: "0000 0000 0000 0000", mono: true)
                             Divider().padding(.horizontal, 14)
-                            cardRow("Titular", CardField.holder, placeholder: "Como aparece en la tarjeta")
+                            cardRow(L("Titular"), CardField.holder, placeholder: L("Como aparece en la tarjeta"))
                             Divider().padding(.horizontal, 14)
                             HStack(spacing: 0) {
-                                cardRow("Caducidad", CardField.expiry, placeholder: "MM/AA", mono: true)
+                                cardRow(L("Caducidad"), CardField.expiry, placeholder: L("MM/AA"), mono: true)
                                 Divider().frame(height: 34)
                                 cardRow("CVV", CardField.cvv, placeholder: "123", mono: true, secure: true)
                                 Divider().frame(height: 34)
-                                cardRow("PIN", CardField.pin, placeholder: "Opcional", mono: true, secure: true)
+                                cardRow("PIN", CardField.pin, placeholder: L("Opcional"), mono: true, secure: true)
                             }
                         }
                         .card()
@@ -60,9 +60,9 @@ struct EntryEditorView: View {
                     }
 
                     VStack(spacing: 0) {
-                        EditRow("Grupo", focused: false) { groupMenu }
+                        EditRow(L("Grupo"), focused: false) { groupMenu }
                         Divider().padding(.horizontal, 14)
-                        EditRow("Etiquetas", focused: focus == .tags) {
+                        EditRow(L("Etiquetas"), focused: focus == .tags) {
                             TextField("Separadas por comas", text: $draft.tags).focused($focus, equals: .tags)
                         }
                         Divider().padding(.horizontal, 14)
@@ -85,7 +85,7 @@ struct EntryEditorView: View {
                     }
                     .card()
 
-                    EditorSection(draft.kind == .note ? "Nota · admite Markdown (# título, - lista, **negrita**)" : "Notas") {
+                    EditorSection(draft.kind == .note ? L("Nota · admite Markdown (# título, - lista, **negrita**)") : L("Notas")) {
                         TextEditor(text: $draft.notes)
                             .font(draft.kind == .note ? .mono(13) : .ui(13))
                             .scrollContentBackground(.hidden)
@@ -142,7 +142,7 @@ struct EntryEditorView: View {
                     .font(.ui(20, .semibold))
                     .frame(minHeight: 28)
                     .focused($focus, equals: .title)
-                Text("En " + (model.root?.group(draft.groupID)?.displayName ?? ""))
+                Text(L("En ") + (model.root?.group(draft.groupID)?.displayName ?? ""))
                     .font(.ui(12))
                     .foregroundStyle(Theme.textTertiary)
             }
@@ -159,12 +159,12 @@ struct EntryEditorView: View {
                 .accessibilityLabel("Contraseña")
                 .font(.mono(13))
                 .focused($focus, equals: .password)
-                IconButton(symbol: revealPassword ? "eye.slash" : "eye", help: revealPassword ? "Ocultar" : "Mostrar", size: 26) { revealPassword.toggle() }
-                IconButton(symbol: "arrow.clockwise", help: "Generar otra", size: 26) {
+                IconButton(symbol: revealPassword ? "eye.slash" : "eye", help: revealPassword ? L("Ocultar") : L("Mostrar"), size: 26) { revealPassword.toggle() }
+                IconButton(symbol: "arrow.clockwise", help: L("Generar otra"), size: 26) {
                     draft.password = PasswordGenerator.generate(Preferences.generator)
                     revealPassword = true
                 }
-                IconButton(symbol: "slider.horizontal.3", help: "Opciones del generador", size: 26) { showGenerator.toggle() }
+                IconButton(symbol: "slider.horizontal.3", help: L("Opciones del generador"), size: 26) { showGenerator.toggle() }
                     .popover(isPresented: $showGenerator, arrowEdge: .trailing) {
                         GeneratorView { generated in
                             draft.password = generated
@@ -179,7 +179,7 @@ struct EntryEditorView: View {
                 let effective = model.resolved(draft.password)
                 let strength = PasswordStrength.of(effective)
                 if Preferences.checkBreaches, (AuditServices.shared.pwnedCount(for: effective) ?? 0) > 0 {
-                    StrengthBar(fraction: 0.08, label: "Filtrada · cámbiala")
+                    StrengthBar(fraction: 0.08, label: L("Filtrada · cámbiala"))
                 } else {
                     StrengthBar(fraction: strength.fraction, label: strength.label)
                 }
@@ -227,7 +227,7 @@ struct EntryEditorView: View {
                 if creatingAlias {
                     ProgressView().controlSize(.small).frame(width: 26, height: 26)
                 } else {
-                    IconButton(symbol: "at.badge.plus", help: "Crear un alias de email con SimpleLogin", size: 26) { createAlias() }
+                    IconButton(symbol: "at.badge.plus", help: L("Crear un alias de email con SimpleLogin"), size: 26) { createAlias() }
                 }
             }
         }
@@ -240,7 +240,7 @@ struct EntryEditorView: View {
             do {
                 draft.userName = try await SimpleLogin.createAlias(for: host, note: draft.title)
             } catch {
-                model.alert = AppModel.AlertMessage(title: "No se ha podido crear el alias", message: error.localizedDescription)
+                model.alert = AppModel.AlertMessage(title: L("No se ha podido crear el alias"), message: error.localizedDescription)
             }
             creatingAlias = false
         }
@@ -253,7 +253,7 @@ struct EntryEditorView: View {
             if !draft.otpIsValid {
                 Text("No es un código 2FA válido").font(.ui(11)).foregroundStyle(Theme.red)
             } else if let totp = TOTP.parse(draft.otp), !draft.otp.isEmpty {
-                Text("Código actual: \(totp.code())").font(.mono(11)).foregroundStyle(Theme.textSecondary)
+                Text(L("Código actual: \(totp.code())")).font(.mono(11)).foregroundStyle(Theme.textSecondary)
             }
         }
     }
@@ -380,8 +380,8 @@ private struct CustomFieldsEditor: View {
                                 .font(.ui(13))
                             }
                             .textFieldStyle(.plain)
-                            IconButton(symbol: field.protected ? "lock.fill" : "lock.open", help: field.protected ? "Oculto: pulsa para mostrarlo" : "Visible: pulsa para ocultarlo", size: 26) { field.protected.toggle() }
-                            IconButton(symbol: "minus.circle", help: "Quitar campo", size: 26) { fields.removeAll { $0.id == field.id } }
+                            IconButton(symbol: field.protected ? "lock.fill" : "lock.open", help: field.protected ? L("Oculto: pulsa para mostrarlo") : L("Visible: pulsa para ocultarlo"), size: 26) { field.protected.toggle() }
+                            IconButton(symbol: "minus.circle", help: L("Quitar campo"), size: 26) { fields.removeAll { $0.id == field.id } }
                         }
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
@@ -427,9 +427,9 @@ struct GeneratorView: View {
                         .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
                         .padding(.top, 4)
                         .accessibilityLabel("Contraseña generada")
-                    IconButton(symbol: "arrow.clockwise", help: "Generar otra (⌘R)", size: 28) { regenerate() }
+                    IconButton(symbol: "arrow.clockwise", help: L("Generar otra (⌘R)"), size: 28) { regenerate() }
                         .keyboardShortcut("r", modifiers: .command)
-                    IconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: copied ? "Copiada" : "Copiar",
+                    IconButton(symbol: copied ? "checkmark" : "doc.on.doc", help: copied ? L("Copiada") : L("Copiar"),
                                size: 28, tint: copied ? Theme.green : Theme.textSecondary) { copy() }
                 }
                 let bits = PasswordGenerator.entropy(options)
@@ -449,7 +449,7 @@ struct GeneratorView: View {
             .labelsHidden()
 
             if options.usePassphrase {
-                stepperRow("Palabras", value: options.wordCount) {
+                stepperRow(L("Palabras"), value: options.wordCount) {
                     Slider(value: Binding(get: { Double(options.wordCount) }, set: { options.wordCount = Int($0.rounded()) }), in: 3...10, step: 1)
                         .accessibilityLabel("Número de palabras")
                         .accessibilityValue("\(options.wordCount)")
@@ -458,7 +458,7 @@ struct GeneratorView: View {
                     Text("Separador").font(.ui(12, .medium)).foregroundStyle(Theme.textSecondary)
                     Spacer()
                     ForEach(["-", ".", "_", " "], id: \.self) { sep in
-                        chip(sep == " " ? "␣" : sep, help: sep == " " ? "Espacio" : sep,
+                        chip(sep == " " ? "␣" : sep, help: sep == " " ? L("Espacio") : sep,
                              Binding(get: { options.separator == sep }, set: { if $0 { options.separator = sep } }))
                             .frame(width: 34)
                     }
@@ -469,16 +469,16 @@ struct GeneratorView: View {
                 }
                 .toggleStyle(.checkbox).font(.ui(12))
             } else {
-                stepperRow("Longitud", value: options.length) {
+                stepperRow(L("Longitud"), value: options.length) {
                     Slider(value: Binding(get: { Double(options.length) }, set: { options.length = Int($0.rounded()) }), in: 8...64)
                         .accessibilityLabel("Longitud")
                         .accessibilityValue("\(options.length) caracteres")
                 }
                 HStack(spacing: 6) {
-                    chip("ABC", help: "Mayúsculas", $options.uppercase)
-                    chip("abc", help: "Minúsculas", $options.lowercase)
-                    chip("123", help: "Números", $options.digits)
-                    chip("#$&", help: "Símbolos", $options.symbols)
+                    chip("ABC", help: L("Mayúsculas"), $options.uppercase)
+                    chip("abc", help: L("Minúsculas"), $options.lowercase)
+                    chip("123", help: L("Números"), $options.digits)
+                    chip("#$&", help: L("Símbolos"), $options.symbols)
                 }
                 Toggle("Evitar caracteres que se confunden (l, 1, O, 0)", isOn: $options.avoidAmbiguous)
                     .toggleStyle(.checkbox).font(.ui(12))
@@ -513,7 +513,7 @@ struct GeneratorView: View {
     }
 
     private func copy() {
-        model.copy(password, label: "Contraseña", markUsed: false)
+        model.copy(password, label: L("Contraseña"), markUsed: false)
         copiedTask?.cancel()
         withAnimation(.easeOut(duration: 0.12)) { copied = true }
         copiedTask = Task {

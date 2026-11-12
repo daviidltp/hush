@@ -25,11 +25,11 @@ public enum VaultError: LocalizedError, Equatable {
 
     public var errorDescription: String? {
         switch self {
-        case .wrongCredentials: return "Contraseña o archivo de clave incorrectos."
-        case let .unreadable(reason): return "No se ha podido abrir la base de datos: \(reason)"
-        case .changedOnDisk: return "El archivo ha cambiado fuera de la app (por ejemplo, desde el móvil). Recarga antes de guardar para no perder esos cambios."
-        case .verificationFailed: return "La copia nueva no se ha podido verificar. No se ha guardado nada."
-        case let .writeFailed(reason): return "No se ha podido guardar: \(reason)"
+        case .wrongCredentials: return L("Contraseña o archivo de clave incorrectos.")
+        case let .unreadable(reason): return L("No se ha podido abrir la base de datos: \(reason)")
+        case .changedOnDisk: return L("El archivo ha cambiado fuera de la app (por ejemplo, desde el móvil). Recarga antes de guardar para no perder esos cambios.")
+        case .verificationFailed: return L("La copia nueva no se ha podido verificar. No se ha guardado nada.")
+        case let .writeFailed(reason): return L("No se ha podido guardar: \(reason)")
         }
     }
 }
@@ -99,7 +99,7 @@ public struct Vault {
             throw VaultError.writeFailed(String(describing: error))
         }
         guard let data = stream.property(forKey: .dataWrittenToMemoryStreamKey) as? Data else {
-            throw VaultError.writeFailed("sin datos")
+            throw VaultError.writeFailed(L("sin datos"))
         }
         return data
     }

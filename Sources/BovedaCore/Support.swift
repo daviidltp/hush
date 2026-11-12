@@ -31,7 +31,7 @@ public struct BackupStore {
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
             try prune(base: base)
         } catch {
-            throw VaultError.writeFailed("no se pudo hacer la copia de seguridad (\(error.localizedDescription))")
+            throw VaultError.writeFailed(L("no se pudo hacer la copia de seguridad (\(error.localizedDescription))"))
         }
     }
 
@@ -196,11 +196,11 @@ public enum PasswordStrength: Int, Comparable {
 
     public var label: String {
         switch self {
-        case .veryWeak: return "Muy débil"
-        case .weak: return "Débil"
-        case .fair: return "Aceptable"
-        case .strong: return "Fuerte"
-        case .veryStrong: return "Muy fuerte"
+        case .veryWeak: return L("Muy débil")
+        case .weak: return L("Débil")
+        case .fair: return L("Aceptable")
+        case .strong: return L("Fuerte")
+        case .veryStrong: return L("Muy fuerte")
         }
     }
 

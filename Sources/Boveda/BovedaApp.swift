@@ -155,7 +155,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .pasteboard) {
             Button("Cortar") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
                 .keyboardShortcut("x")
-            Button(entriesFocused && hasEntry ? "Copiar " + (model.selectedEntry?.entry.kind ?? .login).mainValueName : "Copiar") {
+            Button(entriesFocused && hasEntry ? L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName : L("Copiar")) {
                 if entriesFocused && hasEntry { model.copyPassword() } else { NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) }
             }
             .keyboardShortcut("c")
@@ -168,7 +168,7 @@ struct AppCommands: Commands {
         }
         CommandMenu("Entrada") {
             Button("Copiar usuario") { model.copyUserName() }.keyboardShortcut("b").disabled(!hasEntry)
-            Button("Copiar " + (model.selectedEntry?.entry.kind ?? .login).mainValueName) { model.copyPassword() }.disabled(!hasEntry)
+            Button(L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName) { model.copyPassword() }.disabled(!hasEntry)
             Button("Copiar web") { model.copyURL() }.keyboardShortcut("u").disabled(!hasEntry)
             Button("Abrir web") { model.openURL() }.keyboardShortcut("u", modifiers: [.command, .shift]).disabled(!hasEntry)
             Button("Copiar código 2FA") { model.copyTOTP() }.keyboardShortcut("t").disabled(!hasEntry)
