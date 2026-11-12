@@ -208,6 +208,7 @@ struct AppCommands: Commands {
             Divider()
             Button("Ajustes de la base de datos…") { model.sheet = .databaseSettings }.keyboardShortcut(",", modifiers: [.command, .shift]).disabled(!unlocked)
             Button("Informe de contraseñas…") { model.sheet = .report }.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(!unlocked)
+            Button("Kit de emergencia…") { model.sheet = .emergencyKit }.disabled(!unlocked)
             Button("Descargar los logos de todas las webs") { model.fetchAllFavicons() }.disabled(!unlocked)
             Divider()
             Button("Ordenar grupos A-Z") { model.sortGroups(ascending: true) }.keyboardShortcut(.downArrow).disabled(!unlocked || !listFocused || model.editing != nil || model.sheet != nil)

@@ -118,6 +118,7 @@ struct MainView: View {
         case .databaseSettings: DatabaseSettingsSheet()
         case .totp: TOTPSheet()
         case .history: HistorySheet()
+        case .emergencyKit: EmergencyKitSheet()
         case .newGroup:
             NameSheet(title: model.newGroupParent.flatMap { model.root?.group($0)?.displayName }.map { L("Nuevo grupo en \($0)") } ?? L("Nuevo grupo"),
                       placeholder: L("Nombre del grupo"), action: L("Crear")) { model.addGroup(named: $0, in: model.newGroupParent) }
