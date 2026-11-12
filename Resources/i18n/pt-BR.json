@@ -106,6 +106,7 @@
   "Busca el archivo de arriba. Si se perdió, Hush guarda copias en ~/Library/Application Support/Boveda/Copias y puedes tener otra en tu nube o en un disco.": "Procure o arquivo acima. Se ele se perdeu, o Hush guarda cópias em ~/Library/Application Support/Boveda/Copias, e você pode ter outra na sua nuvem ou em um disco.",
   "Busca por título, usuario, web, notas o etiquetas.": "Busque por título, usuário, site, notas ou etiquetas.",
   "Buscar": "Buscar",
+  "Buscar actualizaciones…": "Buscar Atualizações…",
   "Buscar contraseñas": "Buscar senhas",
   "Buscar en": "Buscar em",
   "Búsqueda rápida": "Busca rápida",
