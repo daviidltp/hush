@@ -19,7 +19,7 @@ concurrency:
 jobs:
   release:
     name: Firmar, notarizar y preparar la versión
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     env:
       SIGN_IDENTITY: "Developer ID Application: David Lopez (T5TC78YWL2)"
