@@ -40,14 +40,20 @@ struct RootView: View {
                 WelcomeView()
                     .transition(.opacity)
             }
+            if model.vault == nil, let progress = model.unlockProgress {
+                UnlockingView(name: model.selected?.name ?? "la base", progress: progress)
+                    .transition(.opacity)
+            }
             // En el selector de apps no se ve nada de la base.
             if scenePhase != .active, model.vault != nil {
                 PrivacyCover().transition(.opacity)
             }
         }
         .animation(Theme.spring, value: model.vault == nil)
+        .animation(Theme.spring, value: model.unlockProgress == nil)
         .animation(.easeOut(duration: 0.15), value: scenePhase)
         .tint(Theme.text)
+        .preferredColorScheme(model.appearance.colorScheme)
         .background(HapticTaps())
         .onChange(of: scenePhase) { _, phase in model.scenePhaseChanged(phase) }
         .alert(item: $model.alert) { alert in

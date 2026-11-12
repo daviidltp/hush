@@ -50,6 +50,14 @@ struct SettingsScreen: View {
             }
             .rowStyle()
 
+            Section(header: ListHeader("Estilo")) {
+                ChoiceRow(title: "Tema", selection: $model.appearance,
+                          options: Appearance.allCases.map { ($0, $0.label) })
+                ChoiceRow(title: "Contraseñas", selection: $model.browseStyle,
+                          options: BrowseStyle.allCases.map { ($0, $0.label) })
+            }
+            .rowStyle()
+
             Section {
                 Button(action: turnOnAutoFill) {
                     LabeledContent("Autorrelleno") {
@@ -66,7 +74,10 @@ struct SettingsScreen: View {
                 Button("Bloquear ahora", systemImage: "lock") { model.lock(manual: true) }
                     .foregroundStyle(Theme.text)
                 if model.vault?.recycleBinUUID != nil {
-                    Button("Vaciar la papelera", systemImage: "trash", role: .destructive) { confirmEmptyBin = true }
+                    Button(role: .destructive) { confirmEmptyBin = true } label: {
+                        Label { Text("Vaciar la papelera") } icon: { Image(systemName: "trash") }
+                            .foregroundStyle(Theme.red)
+                    }
                 }
             }
             .rowStyle()
@@ -199,8 +210,3 @@ private struct ChoiceList<Value: Hashable>: View {
     }
 }
 
-private extension View {
-    func rowStyle() -> some View {
-        listRowBackground(Theme.backgroundSubtle).listRowSeparator(.hidden)
-    }
-}

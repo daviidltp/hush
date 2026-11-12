@@ -1,5 +1,6 @@
 import BovedaCore
 import Foundation
+import SwiftUI
 
 /// Una base que el usuario ha abierto alguna vez con el selector de documentos.
 /// No guarda nada secreto: solo el marcador para volver a abrir el archivo (y el de su archivo de clave).
@@ -57,6 +58,21 @@ enum AppGroup {
     /// Prepara lo compartido. Se llama al arrancar la app y la extensión.
     static func configure() {
         // Las claves de Face ID van en el llavero compartido (ver BiometricKeychain).
+        migrateLocalPreferences()
+    }
+
+    /// Las primeras versiones de prueba se instalaron sin el grupo: sus ajustes quedaron en la carpeta
+    /// de la app. Si el grupo está vacío, se pasan a él una vez y se borra el archivo viejo.
+    private static func migrateLocalPreferences() {
+        guard container != nil, let shared = UserDefaults(suiteName: id) else { return }
+        let old = URL(fileURLWithPath: NSHomeDirectory())
+            .appending(path: "Library/Preferences/\(id).plist")
+        guard shared.object(forKey: "databases") == nil,
+              let data = try? Data(contentsOf: old),
+              let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],
+              values["databases"] != nil else { return }
+        for (key, value) in values { shared.set(value, forKey: key) }
+        try? FileManager.default.removeItem(at: old)
     }
 }
 
@@ -114,5 +130,39 @@ enum Preferences {
 
     static func setRecents(_ ids: [UUID], for database: UUID) {
         defaults.set(ids.map(\.uuidString), forKey: "recents-" + database.uuidString)
+    }
+
+    /// Cómo se ve la lista: carpetas que se abren o todo junto con píldoras arriba.
+    static var browseStyle: BrowseStyle {
+        get { BrowseStyle(rawValue: defaults.string(forKey: "browseStyle") ?? "") ?? .folders }
+        set { defaults.set(newValue.rawValue, forKey: "browseStyle") }
+    }
+
+    static var appearance: Appearance {
+        get { Appearance(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system }
+        set { defaults.set(newValue.rawValue, forKey: "appearance") }
+    }
+}
+
+enum BrowseStyle: String, CaseIterable {
+    case folders, chips
+    var label: String { self == .folders ? "Carpetas" : "Todo junto" }
+}
+
+enum Appearance: String, CaseIterable {
+    case system, light, dark
+    var label: String {
+        switch self {
+        case .system: return "Automático"
+        case .light: return "Claro"
+        case .dark: return "Oscuro"
+        }
+    }
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
     }
 }

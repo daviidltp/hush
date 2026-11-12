@@ -73,6 +73,8 @@ final class AppModel {
             version += 1
         }
     }
+    var browseStyle = Preferences.browseStyle { didSet { Preferences.browseStyle = browseStyle } }
+    var appearance = Preferences.appearance { didSet { Preferences.appearance = appearance } }
     var checkBreaches = Preferences.checkBreaches {
         didSet { Preferences.checkBreaches = checkBreaches; if checkBreaches { Task { await checkPwned() } } else { pwned = [:]; version += 1 } }
     }
@@ -254,13 +256,15 @@ final class AppModel {
         let url = resolved.url
         let scoped = url.startAccessingSecurityScopedResource()
         let start = Date()
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         unlockProgress = (start, db.unlockSeconds ?? 2, false)
         do {
             let opened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: url, unlock: unlock) }.value
             current.unlockSeconds = Date().timeIntervalSince(start)
             update(current)
             unlockProgress?.done = true
-            try? await Task.sleep(for: .milliseconds(220))
+            // Un momento para ver el candado abrirse.
+            try? await Task.sleep(for: .milliseconds(450))
             if !scoped { /* archivo propio de la app: no necesita permiso */ }
             didOpen(opened, db: current, url: scoped ? url : nil)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -543,6 +547,27 @@ final class AppModel {
             alert = AlertMessage(title: "No se ha podido renombrar", message: "Esta ubicación no deja cambiar el nombre del archivo desde Hush. Puedes hacerlo desde la app Archivos.")
             log.error("Renombrar archivo: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    /// Lo que hay directamente dentro de una carpeta (sin entrar en las subcarpetas).
+    func folderContents(_ groupID: UUID?) -> (folders: [KDBX.Group], entries: [KDBX.Entry]) {
+        _ = version
+        guard let vault else { return ([], []) }
+        let id = groupID ?? vault.root.uuid
+        guard let group = vault.root.group(id) else { return ([], []) }
+        let bin = vault.recycleBinUUID
+        var folders = group.groups.filter { $0.uuid != bin }
+            .sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        // La papelera, al final y solo si tiene algo.
+        if id == vault.root.uuid, let bin, let binGroup = group.groups.first(where: { $0.uuid == bin }),
+           !binGroup.allEntries().isEmpty || !binGroup.groups.isEmpty {
+            folders.append(binGroup)
+        }
+        let entries = group.entries.sorted {
+            if $0.isFavorite != $1.isFavorite { return $0.isFavorite }
+            return $0.title.localizedStandardCompare($1.title) == .orderedAscending
+        }
+        return (folders, entries)
     }
 
     func search(_ text: String) -> [KDBX.Entry] {

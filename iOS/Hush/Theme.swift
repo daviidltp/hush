@@ -6,12 +6,12 @@ import UIKit
 /// más contraste entre el fondo y las tarjetas en una pantalla de móvil.
 enum Theme {
     // Fondos
-    static let background = dynamic(light: 0xFFFFFF, dark: 0x000000)
-    static let backgroundSubtle = dynamic(light: 0xF4F4F4, dark: 0x121212)
+    static let background = dynamic(light: 0xF2F2F2, dark: 0x000000)
+    static let backgroundSubtle = dynamic(light: 0xFFFFFF, dark: 0x121212)
     static let fill = dynamic(light: 0xE9E9E9, dark: 0x2A2A2A)
     static let selected = dynamic(light: 0xE4E4E4, dark: 0x1C1C1C)
-    static let field = dynamic(light: 0xF4F4F4, dark: 0x121212)
-    static let sheet = dynamic(light: 0xFFFFFF, dark: 0x000000)
+    static let field = dynamic(light: 0xFFFFFF, dark: 0x121212)
+    static let sheet = dynamic(light: 0xF2F2F2, dark: 0x000000)
     // Bordes
     static let border = dynamic(light: 0xECECEC, dark: 0x181818)
     static let borderStrong = dynamic(light: 0xD4D4D4, dark: 0x383838)
@@ -29,6 +29,8 @@ enum Theme {
     static let green = dynamic(light: 0x1A7F37, dark: 0x34D399)
     static let amber = dynamic(light: 0x8F5F00, dark: 0xEAB308)
     static let red = dynamic(light: 0xCF222E, dark: 0xF87171)
+    /// Estrella de favoritos: amarillo vivo en los dos temas.
+    static let star = dynamic(light: 0xF5B400, dark: 0xEAB308)
 
     static let radius: CGFloat = 12
     static let radiusLarge: CGFloat = 22

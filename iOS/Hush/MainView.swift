@@ -57,7 +57,29 @@ enum EntryFilter: Hashable {
     case all, favorites, group(UUID)
 }
 
+/// Pestaña Contraseñas: por carpetas o todo junto con píldoras, según Ajustes → Estilo.
 struct EntriesTab: View {
+    @Environment(AppModel.self) private var model
+
+    var body: some View {
+        if model.browseStyle == .folders {
+            NavigationStack {
+                FolderScreen(groupID: nil)
+                    .navigationDestination(for: UUID.self) { EntryDetailView(id: $0) }
+                    .navigationDestination(for: FolderRoute.self) { route in
+                        switch route {
+                        case let .group(id): FolderScreen(groupID: id)
+                        case .favorites: FavoritesScreen()
+                        }
+                    }
+            }
+        } else {
+            ChipsEntriesTab()
+        }
+    }
+}
+
+struct ChipsEntriesTab: View {
     @Environment(AppModel.self) private var model
     @State private var filter: EntryFilter = .all
     @State private var editing: EntryDraft?
@@ -246,7 +268,7 @@ struct EntryRow: View {
                         .foregroundStyle(Theme.text)
                         .lineLimit(1)
                     if entry.isFavorite {
-                        Image(systemName: "star.fill").font(.caption2).foregroundStyle(Theme.amber)
+                        Image(systemName: "star.fill").font(.caption2).foregroundStyle(Theme.star)
                             .accessibilityLabel("Favorito")
                     }
                 }
@@ -385,5 +407,190 @@ struct SearchScreen: View {
 
     private func header(_ text: String) -> some View {
         ListHeader(text)
+    }
+}
+
+// MARK: - Carpetas
+
+enum FolderRoute: Hashable {
+    case group(UUID)
+    case favorites
+}
+
+/// Una carpeta: sus subcarpetas arriba y sus contraseñas debajo. La raíz es «Contraseñas».
+struct FolderScreen: View {
+    @Environment(AppModel.self) private var model
+    let groupID: UUID?
+    @State private var editing: EntryDraft?
+    @State private var creatingFolder = false
+    @State private var folderName = ""
+    @State private var renaming: UUID?
+    @State private var deleting: UUID?
+    @State private var newName = ""
+
+    private var isRoot: Bool { groupID == nil || groupID == model.vault?.root.uuid }
+    private var inBin: Bool { groupID != nil && model.vault?.recycleBinUUID == groupID }
+
+    var body: some View {
+        let contents = model.folderContents(groupID)
+        let favorites = isRoot ? model.entries(in: nil).filter(\.isFavorite) : []
+        List {
+            if !favorites.isEmpty {
+                Section {
+                    NavigationLink(value: FolderRoute.favorites) {
+                        FolderRow(symbol: "star.fill", tint: Theme.star, title: "Favoritos", count: favorites.count)
+                    }
+                    .rowStyle()
+                }
+            }
+            if !contents.folders.isEmpty {
+                Section {
+                    ForEach(contents.folders, id: \.uuid) { folder in
+                        let isBin = folder.uuid == model.vault?.recycleBinUUID
+                        NavigationLink(value: FolderRoute.group(folder.uuid)) {
+                            FolderRow(symbol: isBin ? "trash" : "folder.fill", tint: Theme.textSecondary,
+                                      title: isBin ? "Papelera" : folder.displayName, count: folder.allEntries().count)
+                        }
+                        .rowStyle()
+                        .contextMenu {
+                            if !isBin {
+                                Button("Renombrar", systemImage: "pencil") { newName = folder.name ?? ""; renaming = folder.uuid }
+                                Button("Borrar carpeta", systemImage: "trash", role: .destructive) { deleting = folder.uuid }
+                            }
+                        }
+                        .swipeActions(edge: .trailing) {
+                            if !isBin {
+                                Button("Borrar", systemImage: "trash", role: .destructive) { deleting = folder.uuid }
+                                Button("Renombrar", systemImage: "pencil") { newName = folder.name ?? ""; renaming = folder.uuid }
+                                    .tint(Theme.blue)
+                            }
+                        }
+                    }
+                } header: {
+                    ListHeader("Carpetas")
+                }
+            }
+            if !contents.entries.isEmpty {
+                Section {
+                    ForEach(contents.entries, id: \.uuid) { entry in
+                        NavigationLink(value: entry.uuid) { EntryRow(entry: entry) }
+                            .rowStyle()
+                            .entryActions(entry, editing: $editing)
+                    }
+                } header: {
+                    if !contents.folders.isEmpty || !favorites.isEmpty { ListHeader("Contraseñas") }
+                }
+            }
+            if contents.folders.isEmpty && contents.entries.isEmpty && favorites.isEmpty {
+                ContentUnavailableView(inBin ? "Papelera vacía" : "Carpeta vacía", systemImage: inBin ? "trash" : "folder",
+                                       description: Text(inBin ? "" : "Pulsa + para añadir una contraseña."))
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .padding(.top, 60)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .contentMargins(.top, 12, for: .scrollContent)
+        .background(HushBackground())
+        .animation(Theme.spring, value: contents.entries.map(\.uuid) + contents.folders.map(\.uuid))
+        .refreshable { await model.reload() }
+        .navigationTitle(title)
+        .toolbar {
+            if isRoot {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Bloquear", systemImage: "lock") { model.lock(manual: true) }
+                }
+            }
+            if !inBin {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Nueva carpeta", systemImage: "folder.badge.plus") { folderName = ""; creatingFolder = true }
+                }
+                ToolbarSpacer(.fixed, placement: .topBarTrailing)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { newEntry() } label: {
+                        Image(systemName: "plus").fontWeight(.semibold).foregroundStyle(Theme.onPrimary)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(Theme.primary)
+                    .accessibilityLabel("Nueva entrada")
+                }
+            }
+        }
+        .sheet(item: $editing) { EntryEditorView(draft: $0) }
+        .alert("Nueva carpeta", isPresented: $creatingFolder) {
+            TextField("Nombre", text: $folderName)
+            Button("Cancelar", role: .cancel) {}
+            Button("Crear") { model.createFolder(named: folderName, in: groupID) }
+        }
+        .alert("Renombrar carpeta", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } })) {
+            TextField("Nombre", text: $newName)
+            Button("Cancelar", role: .cancel) {}
+            Button("Guardar") { if let id = renaming { model.renameFolder(id, to: newName) } }
+        }
+        .confirmationDialog("¿Borrar la carpeta?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible) {
+            Button("Borrar", role: .destructive) { if let id = deleting { model.deleteFolder(id) } }
+        } message: {
+            Text("Se mueve a la papelera con todo lo que tiene dentro.")
+        }
+    }
+
+    private var title: String {
+        guard !isRoot, let groupID else { return "Contraseñas" }
+        if inBin { return "Papelera" }
+        return model.vault?.root.group(groupID)?.displayName ?? "Carpeta"
+    }
+
+    private func newEntry() {
+        guard let vault = model.vault else { return }
+        editing = EntryDraft(entry: .make(title: ""), groupID: groupID ?? vault.root.uuid, isNew: true)
+    }
+}
+
+/// Fila de carpeta: icono, nombre y cuántas contraseñas tiene dentro.
+struct FolderRow: View {
+    let symbol: String
+    let tint: Color
+    let title: String
+    let count: Int
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbol)
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Theme.fill))
+            Text(title).font(.body.weight(.medium)).foregroundStyle(Theme.text).lineLimit(1)
+            Spacer(minLength: 0)
+            Text("\(count)").font(.subheadline.monospacedDigit()).foregroundStyle(Theme.textTertiary)
+        }
+        .padding(.vertical, 4)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct FavoritesScreen: View {
+    @Environment(AppModel.self) private var model
+    @State private var editing: EntryDraft?
+
+    var body: some View {
+        let favorites = model.entries(in: nil).filter(\.isFavorite)
+        List {
+            ForEach(favorites, id: \.uuid) { entry in
+                NavigationLink(value: entry.uuid) { EntryRow(entry: entry) }
+                    .rowStyle()
+                    .entryActions(entry, editing: $editing)
+            }
+            if favorites.isEmpty {
+                ContentUnavailableView("Sin favoritos", systemImage: "star",
+                                       description: Text("Marca una entrada con la estrella para verla aquí."))
+                    .listRowBackground(Color.clear)
+            }
+        }
+        .scrollContentBackground(.hidden)
+        .contentMargins(.top, 12, for: .scrollContent)
+        .background(HushBackground())
+        .navigationTitle("Favoritos")
+        .sheet(item: $editing) { EntryEditorView(draft: $0) }
     }
 }

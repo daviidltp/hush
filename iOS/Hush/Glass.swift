@@ -18,7 +18,7 @@ struct HushBackground: View {
 
 extension Theme {
     /// Luz del fondo.
-    static let glow = dynamic(light: 0xF2F2F2, dark: 0x141414)
+    static let glow = dynamic(light: 0xFAFAFA, dark: 0x141414)
 }
 
 /// Botón principal: píldora sólida (blanca en oscuro, negra en claro), como el del Mac.
@@ -294,5 +294,12 @@ struct ListHeader: View {
             .textCase(nil)
             .padding(.leading, -16)
             .padding(.bottom, 2)
+    }
+}
+
+extension View {
+    /// Fila de lista con el fondo de tarjeta y sin separadores.
+    func rowStyle() -> some View {
+        listRowBackground(Theme.backgroundSubtle).listRowSeparator(.hidden)
     }
 }

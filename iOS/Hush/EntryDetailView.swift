@@ -73,7 +73,7 @@ struct EntryDetailView: View {
                 Button(entry.isFavorite ? "Quitar de favoritos" : "Favorito", systemImage: entry.isFavorite ? "star.fill" : "star") {
                     model.mutate { $0.toggleFavorite(id) }
                 }
-                .tint(entry.isFavorite ? Theme.amber : Theme.text)
+                .tint(entry.isFavorite ? Theme.star : Theme.text)
                 .sensoryFeedback(.selection, trigger: entry.isFavorite)
             }
             ToolbarItem(placement: .topBarTrailing) {
