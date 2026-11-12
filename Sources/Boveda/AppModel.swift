@@ -285,7 +285,7 @@ final class AppModel {
     var newGroupParent: UUID?
 
     enum SheetKind: String, Identifiable {
-        case shortcuts, report, databaseSettings, newGroup, totp, history
+        case shortcuts, report, databaseSettings, newGroup, totp, history, emergencyKit
         var id: String { rawValue }
     }
 
@@ -593,6 +593,8 @@ final class AppModel {
             let vault = try await Task.detached(priority: .userInitiated) { try Vault.create(at: url, name: name, unlock: unlock) }.value
             if Preferences.touchIDEnabled, QuickUnlock.isAvailable { try? QuickUnlock.enroll(unlock, for: url) }
             didOpen(vault)
+            // Base nueva: es el momento de apuntar la contraseña maestra en papel.
+            sheet = .emergencyKit
         } catch {
             alert = AlertMessage(title: L("No se ha podido crear"), message: error.localizedDescription)
         }

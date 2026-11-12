@@ -3,15 +3,17 @@ import BovedaCore
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Marca de la app: un cuadrado negro con un candado, al estilo del triángulo de Vercel.
+/// Marca de la app: el mismo icono que en el Dock (la llave), para que se reconozca en todas partes.
 struct AppMark: View {
     var size: CGFloat = 40
     var body: some View {
-        Image(systemName: "lock.fill")
-            .font(.system(size: size * 0.42, weight: .semibold))
-            .foregroundStyle(Theme.onPrimary)
+        // El icono de macOS trae margen transparente alrededor: se agranda para que el dibujo mida `size`.
+        Image(nsImage: NSApp.applicationIconImage)
+            .resizable()
+            .interpolation(.high)
+            .frame(width: size * 1.25, height: size * 1.25)
             .frame(width: size, height: size)
-            .background(RoundedRectangle(cornerRadius: size * 0.24).fill(Theme.primary))
+            .accessibilityHidden(true)
     }
 }
 
@@ -55,12 +57,35 @@ struct WelcomeView: View {
                     }
                 }
 
-                HStack(spacing: 8) {
-                    Button("Abrir base de datos…") { model.openPanel() }
-                        .buttonStyle(GButtonStyle(kind: .primary))
-                        .keyboardShortcut(.defaultAction)
-                    Button("Crear nueva") { model.wantsCreate = true }
-                        .buttonStyle(GButtonStyle(kind: .secondary))
+                if model.recents.isEmpty {
+                    // Primera vez: qué es Hush y qué hacer.
+                    VStack(alignment: .leading, spacing: 14) {
+                        feature("doc.badge.gearshape", L("Tu archivo, donde tú quieras"),
+                                L("Las contraseñas viven en un archivo .kdbx cifrado: en el Mac, en tu nube o en un pendrive. Se abre también en el móvil."))
+                        feature("lock.shield", L("Cifrado aquí, sin cuentas"),
+                                L("Hush no tiene servidores. Nada sale del Mac sin cifrar y nadie más tiene tu llave."))
+                        feature("chevron.left.forwardslash.chevron.right", L("Gratis y de código abierto"),
+                                L("Sin suscripciones. Cualquiera puede revisar el código."))
+                    }
+                    .padding(18)
+                    .background(RoundedRectangle(cornerRadius: Theme.radiusLarge).fill(Theme.background))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.radiusLarge).strokeBorder(Theme.border))
+
+                    HStack(spacing: 8) {
+                        Button("Crear una base de datos") { model.wantsCreate = true }
+                            .buttonStyle(GButtonStyle(kind: .primary))
+                            .keyboardShortcut(.defaultAction)
+                        Button("Abrir un archivo .kdbx…") { model.openPanel() }
+                            .buttonStyle(GButtonStyle(kind: .secondary))
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Button("Abrir base de datos…") { model.openPanel() }
+                            .buttonStyle(GButtonStyle(kind: .primary))
+                            .keyboardShortcut(.defaultAction)
+                        Button("Crear nueva") { model.wantsCreate = true }
+                            .buttonStyle(GButtonStyle(kind: .secondary))
+                    }
                 }
             }
             .frame(width: 440)
@@ -69,6 +94,19 @@ struct WelcomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Theme.backgroundSubtle)
         .sheet(isPresented: Binding(get: { model.wantsCreate }, set: { model.wantsCreate = $0 })) { CreateVaultSheet() }
+    }
+}
+
+private func feature(_ symbol: String, _ title: String, _ detail: String) -> some View {
+    HStack(alignment: .top, spacing: 12) {
+        Image(systemName: symbol)
+            .font(.system(size: 14, weight: .medium))
+            .frame(width: 30, height: 30)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Theme.fill))
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.ui(13, .semibold))
+            Text(detail).font(.ui(12)).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -422,6 +460,8 @@ struct CreateVaultSheet: View {
     @State private var name = L("Contraseñas")
     @State private var password = ""
     @State private var confirm = ""
+    /// Frase propuesta por Hush (se muestra para que se pueda aprender y apuntar).
+    @State private var suggested: String?
 
     private var strength: PasswordStrength { .of(password) }
     private var valid: Bool { !name.isEmpty && password.count >= 8 && password == confirm }
@@ -438,8 +478,36 @@ struct CreateVaultSheet: View {
                 GField(focused: false) { SecureField("", text: $password).font(.mono(13)) }
             }
             StrengthBar(fraction: password.isEmpty ? 0 : strength.fraction, label: password.count < 8 ? L("Mínimo 8 caracteres") : strength.label)
-            LabeledField(L("Repítela")) {
-                GField(focused: false) { SecureField("", text: $confirm).font(.mono(13)) }
+            if let suggested, suggested == password {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(suggested).font(.mono(13, .medium)).textSelection(.enabled)
+                    Text("Apréndetela y apúntala en el kit de emergencia que te ofreceremos al terminar.")
+                        .font(.ui(11)).foregroundStyle(Theme.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: Theme.radius).fill(Theme.fill))
+            } else {
+                Button {
+                    var options = GeneratorOptions()
+                    options.usePassphrase = true
+                    options.wordCount = 5
+                    let phrase = PasswordGenerator.generate(options)
+                    suggested = phrase
+                    password = phrase
+                    confirm = phrase
+                } label: {
+                    Label("Sugerir una frase segura", systemImage: "dice")
+                }
+                .buttonStyle(GButtonStyle(kind: .ghost))
+                .help("Cinco palabras al azar: fácil de recordar y muy difícil de adivinar")
+            }
+            // Con la frase sugerida ya rellenada no hace falta repetirla.
+            if suggested == nil || suggested != password {
+                LabeledField(L("Repítela")) {
+                    GField(focused: false) { SecureField("", text: $confirm).font(.mono(13)) }
+                }
             }
             if !confirm.isEmpty && confirm != password {
                 Text("No coinciden").font(.ui(12)).foregroundStyle(Theme.red)
