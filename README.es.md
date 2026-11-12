@@ -16,7 +16,7 @@ Gestor de contraseñas para macOS, nativo (Swift y SwiftUI), sobre archivos **KD
 - Generador de contraseñas y frases en español.
 - Auditoría: contraseñas filtradas (Have I Been Pwned con k-anonimato: solo salen 5 caracteres del hash), repetidas, parecidas, débiles y webs que admiten 2FA.
 - Búsqueda rápida con atajo global (⇧⌘Espacio) e icono en la barra de menús.
-- Autorrelleno en el navegador (Chrome, Brave, Edge, Arc, Vivaldi, Opera, Firefox y Zen).
+- Autorrelleno en el navegador (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox y Zen).
 - Exportar a CSV o .zip con adjuntos, con aviso de que van sin cifrar.
 
 ## Compilar

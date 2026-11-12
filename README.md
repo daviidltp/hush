@@ -16,7 +16,7 @@ A native macOS password manager (Swift and SwiftUI) built on **KDBX** files, the
 - Password and passphrase generator.
 - Audit: breached passwords (Have I Been Pwned with k-anonymity: only 5 characters of the hash leave your Mac), reused, similar and weak passwords, and sites that support 2FA.
 - Quick search with a global shortcut (⇧⌘Space) and a menu bar icon.
-- Browser autofill (Chrome, Brave, Edge, Arc, Vivaldi, Opera, Firefox and Zen).
+- Browser autofill (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox and Zen).
 - Export to CSV or .zip with attachments, with a warning that they are not encrypted.
 
 ## Build
