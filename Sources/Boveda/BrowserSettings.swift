@@ -11,7 +11,7 @@ struct BrowserSettings: View {
                 step("1", "Abre la carpeta de la extensión.") {
                     Button("Mostrar en Finder") { NSWorkspace.shared.activateFileViewerSelecting([BrowserBridge.extensionFolder.appending(path: "chromium")]) }
                 }
-                step("2", "Chrome, Brave, Edge o Arc: ve a «extensiones», activa el «modo de desarrollador» y pulsa «Cargar descomprimida». Elige la carpeta «chromium».") {
+                step("2", "Chrome, Brave, Edge, Arc o Helium: ve a «extensiones», activa el «modo de desarrollador» y pulsa «Cargar descomprimida». Elige la carpeta «chromium».") {
                     EmptyView()
                 }
                 step("3", "Firefox o Zen: en about:config pon xpinstall.signatures.required en false. Después arrastra «Hush.xpi» a la ventana del navegador.") {

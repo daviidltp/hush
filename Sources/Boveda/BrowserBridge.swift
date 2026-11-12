@@ -129,6 +129,7 @@ final class BrowserBridge {
         "S6N382Y83G", // The Browser Company (Arc, Dia)
         "4XF3XNRN6Y", // Vivaldi
         "A2P9LX4JPN", // Opera
+        "S4Q33XPHB4", // imput (Helium)
     ]
 
     nonisolated private static func parentIsBrowser(_ pid: pid_t) -> Bool {
@@ -149,6 +150,7 @@ final class BrowserBridge {
     private static let chromiumFolders = [
         "Google/Chrome", "Google/Chrome Beta", "Google/Chrome Canary", "Chromium", "BraveSoftware/Brave-Browser",
         "Microsoft Edge", "Vivaldi", "Arc/User Data", "Dia/User Data", "Comet", "com.operasoftware.Opera",
+        "net.imput.helium",
     ]
     /// Firefox y derivados (Zen, LibreWolf…) leen la carpeta de Mozilla.
     private static let firefoxFolders = ["Mozilla", "zen", "librewolf", "Waterfox"]
