@@ -17,7 +17,9 @@ Gestor de contraseñas para macOS, nativo (Swift y SwiftUI), sobre archivos **KD
 - Auditoría: contraseñas filtradas (Have I Been Pwned con k-anonimato: solo salen 5 caracteres del hash), repetidas, parecidas, débiles y webs que admiten 2FA.
 - Búsqueda rápida con atajo global (⇧⌘Espacio) e icono en la barra de menús.
 - Autorrelleno en el navegador (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox y Zen).
+- Importar desde otras apps: exportaciones CSV o JSON sin cifrar de Bitwarden, 1Password, Contraseñas de Apple, Proton Pass, Chrome/Edge/Brave, Firefox y apps compatibles con KeePass (y cualquier CSV con cabecera). Mantiene carpetas, favoritos, etiquetas, 2FA y tarjetas, y se salta los duplicados.
 - Exportar a CSV o .zip con adjuntos, con aviso de que van sin cifrar.
+- Kit de emergencia: un PDF para imprimir con lo necesario para recuperar la base y un hueco para escribir a mano la contraseña maestra.
 
 ## Compilar
 

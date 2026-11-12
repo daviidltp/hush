@@ -102,11 +102,12 @@ def check():
     return ok
 
 
-SPANISH = re.compile(r"^[a-záéíóúñ]+(?: [a-záéíóúñ]+)+$|[áéíóúñ¿¡]|\b(?:de|la|el|las|los|en|con|para|una?|y|o|no|se|tu|tus)\b|^[A-ZÁÉÍÓÚ][a-záéíóúñ]+[.…:]?$")
+SPANISH = re.compile(r"^[a-záéíóúñ]+(?: [a-záéíóúñ]+)+$|[áéíóúñ¿¡«»]|\b(?:de|la|el|las|los|en|con|para|una?|y|o|no|se|tu|tus)\b|^[A-ZÁÉÍÓÚ][a-záéíóúñ]+[.…:]?$")
 # Literales que no son interfaz: rutas, claves internas del archivo KDBX, cabeceras, listas de contraseñas comunes…
 IGNORE_LINE = re.compile(r"appending(?:Path(?:Component)?)?\(|User-Agent|public static let|kindKey|favoriteTag|precondition|"
                          r"^\s*//|^\s*///|logger|print\(|\"contraseña\", \"contrasena\"|\"madrid\", \"españa\"|"
-                         r"^\s*case\s+\w+\s*=\s*\"|keyboardShortcut\(|info\[|userInfo:")
+                         r"^\s*case\s+\w+\s*=\s*\"|keyboardShortcut\(|info\[|userInfo:|"
+                         r"column\(\[|\"yes\", \"sí\"")  # nombres de columnas de los CSV que se importan
 # Nombres propios y claves que no se traducen.
 IGNORE_TEXT = {"Hush", "Chromium", "Vivaldi", "Comet", "Mozilla", "Waterfox", "Mastercard", "Email", "Authentication", "no-totp"}
 
