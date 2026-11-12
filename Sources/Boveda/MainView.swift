@@ -119,6 +119,7 @@ struct MainView: View {
         case .totp: TOTPSheet()
         case .history: HistorySheet()
         case .emergencyKit: EmergencyKitSheet()
+        case .importPasswords: ImportSheet()
         case .newGroup:
             NameSheet(title: model.newGroupParent.flatMap { model.root?.group($0)?.displayName }.map { L("Nuevo grupo en \($0)") } ?? L("Nuevo grupo"),
                       placeholder: L("Nombre del grupo"), action: L("Crear")) { model.addGroup(named: $0, in: model.newGroupParent) }
@@ -784,9 +785,16 @@ private struct EmptyState: View {
                     .padding(.top, 4)
             }
             if content.offersNew {
-                Button("Nueva entrada") { model.newEntry() }
-                    .buttonStyle(GButtonStyle(kind: .primary, compact: true))
-                    .padding(.top, 4)
+                HStack(spacing: 8) {
+                    Button("Nueva entrada") { model.newEntry() }
+                        .buttonStyle(GButtonStyle(kind: .primary, compact: true))
+                    // Base vacía: lo más probable es que vengas de otra app.
+                    if model.count(.all) == 0 {
+                        Button("Importar de otra app…") { model.importPasswords() }
+                            .buttonStyle(GButtonStyle(kind: .secondary, compact: true))
+                    }
+                }
+                .padding(.top, 4)
             }
             Spacer()
         }

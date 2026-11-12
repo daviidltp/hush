@@ -278,6 +278,8 @@ final class AppModel {
     var searchFocusTrigger = 0
     var focusRequest: FocusArea?
     var wantsCreate = false
+    /// Archivo de otra app leído y pendiente de confirmar (hoja «Importar contraseñas»).
+    var pendingImport: PendingImport?
     var hideUsernames = false
     var revealPassword = false
     var sheet: SheetKind?
@@ -285,7 +287,7 @@ final class AppModel {
     var newGroupParent: UUID?
 
     enum SheetKind: String, Identifiable {
-        case shortcuts, report, databaseSettings, newGroup, totp, history, emergencyKit
+        case shortcuts, report, databaseSettings, newGroup, totp, history, emergencyKit, importPasswords
         var id: String { rawValue }
     }
 
