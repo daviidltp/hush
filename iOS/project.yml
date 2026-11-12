@@ -1,0 +1,86 @@
+name: Hush
+options:
+  bundleIdPrefix: com.david
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+packages:
+  Boveda:
+    path: ..
+targets:
+  Hush:
+    type: application
+    platform: iOS
+    sources:
+      - path: Hush
+    entitlements:
+      path: Hush/Hush.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.david.hush]
+    dependencies:
+      - package: Boveda
+        product: BovedaCore
+      - target: HushAutoFill
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.david.hush
+        PRODUCT_NAME: Hush
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_FILE: Hush/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+  # Autorrelleno de contraseñas y códigos 2FA (llave del teclado).
+  HushAutoFill:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: HushAutoFill
+      - path: Hush/Theme.swift
+      - path: Hush/Glass.swift
+      - path: Hush/Store.swift
+    entitlements:
+      path: HushAutoFill/HushAutoFill.entitlements
+      properties:
+        com.apple.developer.authentication-services.autofill-credential-provider: true
+        com.apple.security.application-groups: [group.com.david.hush]
+    dependencies:
+      - package: Boveda
+        product: BovedaCore
+      - sdk: AuthenticationServices.framework
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.david.hush.autofill
+        PRODUCT_NAME: HushAutoFill
+        INFOPLIST_FILE: HushAutoFill/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+  HushTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: HushTests
+    dependencies:
+      - package: Boveda
+        product: BovedaCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+schemes:
+  Hush:
+    build:
+      targets:
+        Hush: all
+    test:
+      targets:
+        - HushTests

@@ -324,7 +324,11 @@ public enum PwnedPasswords {
         var request = URLRequest(url: URL(string: "https://api.pwnedpasswords.com/range/\(prefix)")!)
         // El relleno hace que todas las respuestas pesen parecido y no se pueda adivinar nada por el tamaño.
         request.setValue("true", forHTTPHeaderField: "Add-Padding")
+        #if os(iOS)
+        request.setValue("Boveda-iOS", forHTTPHeaderField: "User-Agent")
+        #else
         request.setValue("Boveda-macOS", forHTTPHeaderField: "User-Agent")
+        #endif
         request.timeoutInterval = 15
         request.cachePolicy = .reloadIgnoringLocalCacheData
         let (data, response) = try await URLSession(configuration: .ephemeral).data(for: request)

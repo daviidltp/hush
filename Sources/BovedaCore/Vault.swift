@@ -75,7 +75,7 @@ public struct Vault {
 
     public static func open(url: URL, unlock: UnlockData) throws -> Vault {
         let data: Data
-        do { data = try Data(contentsOf: url) } catch { throw VaultError.unreadable(error.localizedDescription) }
+        do { data = try readFile(url) } catch { throw VaultError.unreadable(error.localizedDescription) }
         do {
             let content = try KDBXReader.parse(data, unlockData: unlock)
             return Vault(url: url, content: content, unlock: unlock, diskFingerprint: fingerprint(data))
@@ -128,7 +128,7 @@ public struct Vault {
                 do { current = try Data(contentsOf: target) } catch { throw VaultError.writeFailed(error.localizedDescription) }
                 guard Self.fingerprint(current) == diskFingerprint else { throw VaultError.changedOnDisk }
                 try backups.store(current, for: url)
-                do { try AtomicFileWriter.write(bytes, to: target) } catch { throw VaultError.writeFailed(String(describing: error)) }
+                do { try Self.writeFile(bytes, to: target) } catch { throw VaultError.writeFailed(String(describing: error)) }
             } catch {
                 thrown = error
             }
@@ -136,6 +136,37 @@ public struct Vault {
         if let thrown { throw thrown }
         if let coordinationError { throw VaultError.writeFailed(coordinationError.localizedDescription) }
         diskFingerprint = Self.fingerprint(bytes)
+    }
+
+    /// Lee el archivo. En el iPhone lo hace coordinado, para que iCloud o Dropbox lo bajen si hace falta.
+    static func readFile(_ url: URL) throws -> Data {
+        #if os(iOS)
+        var coordinationError: NSError?
+        var result: Result<Data, Error> = .failure(VaultError.unreadable("sin acceso"))
+        NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: url, options: [], error: &coordinationError) { target in
+            result = Result { try Data(contentsOf: target) }
+        }
+        if let coordinationError { throw coordinationError }
+        return try result.get()
+        #else
+        return try Data(contentsOf: url)
+        #endif
+    }
+
+    /// Escribe de forma atómica. En el iPhone, si el proveedor de archivos (iCloud, Dropbox…) solo da permiso
+    /// sobre el archivo y no sobre su carpeta, no se puede crear el temporal de al lado: entonces se escribe
+    /// encima y se comprueba leyéndolo de nuevo. Antes ya se ha verificado la copia y hecho la de seguridad.
+    static func writeFile(_ bytes: Data, to url: URL) throws {
+        #if os(iOS)
+        do {
+            try AtomicFileWriter.write(bytes, to: url)
+        } catch {
+            try bytes.write(to: url)
+            guard (try? Data(contentsOf: url)) == bytes else { throw VaultError.verificationFailed }
+        }
+        #else
+        try AtomicFileWriter.write(bytes, to: url)
+        #endif
     }
 
     /// Cambia la clave con la que se cifrará el próximo guardado (cambiar contraseña maestra).
@@ -151,7 +182,7 @@ public struct Vault {
 
     /// Indica si el archivo en disco ya no es el que abrimos.
     public func changedOnDisk() -> Bool {
-        guard let data = try? Data(contentsOf: url) else { return false }
+        guard let data = try? Self.readFile(url) else { return false }
         return Self.fingerprint(data) != diskFingerprint
     }
 }
