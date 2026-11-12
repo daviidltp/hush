@@ -3,8 +3,10 @@ import PackageDescription
 
 let package = Package(
     name: "Boveda",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v15), .iOS(.v18)],
     products: [
+        // Lógica compartida con la app de iPhone (iOS/).
+        .library(name: "BovedaCore", targets: ["BovedaCore"]),
         .executable(name: "Boveda", targets: ["Boveda"]),
         .executable(name: "HushBridge", targets: ["HushBridge"]),
         .executable(name: "HushMenu", targets: ["HushMenu"]),
