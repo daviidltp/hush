@@ -70,6 +70,13 @@ enum SecureRandom {
             if value < limit { return Int(value % bound) }
         }
     }
+
+    static func bytes(_ count: Int) -> Data {
+        var data = Data(count: count)
+        let status = data.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, count, $0.baseAddress!) }
+        precondition(status == errSecSuccess, "Sin generador aleatorio del sistema")
+        return data
+    }
 }
 
 // MARK: - Generador de contraseñas

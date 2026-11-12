@@ -150,6 +150,12 @@ struct Preferences {
         set { defaults.set(newValue, forKey: "checkBreaches") }
     }
 
+    /// Crear y usar claves de acceso (passkeys) de las webs con Hush, a través de la extensión.
+    static var passkeysEnabled: Bool {
+        get { defaults.object(forKey: "passkeysEnabled") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "passkeysEnabled") }
+    }
+
     /// Avisar de webs que permiten 2FA (lista pública de 2fa.directory).
     static var check2FA: Bool {
         get { defaults.object(forKey: "check2FA") as? Bool ?? true }

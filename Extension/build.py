@@ -23,7 +23,12 @@ base = {
     "host_permissions": ["<all_urls>"],
     "action": {"default_title": "Hush", "default_popup": "popup.html",
                "default_icon": {s: f"icons/icon-{s}.png" for s in ("16", "32")}},
-    "content_scripts": [{"matches": ["<all_urls>"], "js": ["content.js"], "all_frames": True, "run_at": "document_idle"}],
+    "content_scripts": [
+        {"matches": ["<all_urls>"], "js": ["content.js"], "all_frames": True, "run_at": "document_idle"},
+        # Claves de acceso: page.js en el mundo de la página (navigator.credentials) y relay.js de mensajero.
+        {"matches": ["https://*/*", "http://localhost/*"], "js": ["page.js"], "run_at": "document_start", "world": "MAIN"},
+        {"matches": ["https://*/*", "http://localhost/*"], "js": ["relay.js"], "run_at": "document_start"},
+    ],
     "commands": {"autofill": {"suggested_key": {"default": "Ctrl+Shift+L", "mac": "Command+Shift+L"},
                               "description": "Rellenar con la última cuenta usada en esta web"}},
 }

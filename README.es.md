@@ -17,6 +17,7 @@ Gestor de contraseñas para macOS, nativo (Swift y SwiftUI), sobre archivos **KD
 - Auditoría: contraseñas filtradas (Have I Been Pwned con k-anonimato: solo salen 5 caracteres del hash), repetidas, parecidas, débiles y webs que admiten 2FA.
 - Búsqueda rápida con atajo global (⇧⌘Espacio) e icono en la barra de menús.
 - Autorrelleno en el navegador (Chrome, Brave, Edge, Arc, Helium, Vivaldi, Opera, Firefox y Zen).
+- Claves de acceso (passkeys): créalas y entra con ellas desde el navegador, confirmando cada vez en Hush. Se guardan en el formato de passkeys de KeePass (`KPEX_PASSKEY_*`), así que también sirven en apps compatibles del móvil.
 - Importar desde otras apps: exportaciones CSV o JSON sin cifrar de Bitwarden, 1Password, Contraseñas de Apple, Proton Pass, Chrome/Edge/Brave, Firefox y apps compatibles con KeePass (y cualquier CSV con cabecera). Mantiene carpetas, favoritos, etiquetas, 2FA y tarjetas, y se salta los duplicados.
 - Exportar a CSV o .zip con adjuntos, con aviso de que van sin cifrar.
 - Kit de emergencia: un PDF para imprimir con lo necesario para recuperar la base y un hueco para escribir a mano la contraseña maestra.
@@ -49,6 +50,7 @@ La extensión todavía no está en las tiendas de Chrome ni de Firefox. Hasta en
 - Al bloquear se borran de memoria la clave y los datos, el portapapeles (si lo puso Hush) y los adjuntos abiertos.
 - La extensión no guarda contraseñas: las pide a Hush en el momento de rellenar. Solo ofrece las cuentas de la web abierta (dominio registrable según la [Public Suffix List](https://publicsuffix.org)), nunca da una contraseña de https a una página http e ignora los eventos que fabrica la página.
 - Hush solo acepta el puente del navegador si lo ha abierto un navegador firmado por su fabricante y conectado directamente a él. Cada navegador se empareja con tu permiso.
+- Claves de acceso: el origen lo da el navegador, no la página; una web solo puede usar claves de su propio dominio (nunca de un sufijo público), solo en https y en la ventana principal, y cada vez que se crea o se usa una Hush pide confirmación. La clave privada va como campo protegido dentro de la base.
 - Lo que Hush **no** protege: un Mac ya infectado con malware que corre con tu usuario.
 
 Si encuentras un fallo de seguridad, mira [SECURITY.md](SECURITY.md). Para contribuir, [CONTRIBUTING.md](CONTRIBUTING.md).
