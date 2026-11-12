@@ -155,7 +155,6 @@ struct AuditScreen: View {
             } else {
                 Card {
                     ForEach(Array(entries.enumerated()), id: \.element.uuid) { index, entry in
-                        if index > 0 { RowDivider(inset: 68) }
                         NavigationLink(value: entry.uuid) {
                             HStack(alignment: .top, spacing: 12) {
                                 EntryAvatar(title: entry.title, icon: model.icon(for: entry))

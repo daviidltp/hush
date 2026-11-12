@@ -10,6 +10,8 @@ struct UnlockView: View {
     @State private var reveal = false
     @State private var showDatabases = false
     @State private var pickingKeyFile = false
+    /// Con Face ID activado se enseña primero Face ID; la contraseña solo si se pide.
+    @State private var usePassword = false
     @FocusState private var focused: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -26,6 +28,16 @@ struct UnlockView: View {
     private var canSubmit: Bool { !model.busy && (!password.isEmpty || db.keyFileBookmark != nil) }
 
     var body: some View {
+        if faceID && !usePassword && !model.faceIDWantsPassword {
+            FaceIDLockView(db: db) {
+                withAnimation(Theme.spring) { usePassword = true }
+            }
+        } else {
+            passwordScreen
+        }
+    }
+
+    private var passwordScreen: some View {
         ZStack {
             HushBackground()
             VStack(spacing: 0) {
@@ -56,7 +68,10 @@ struct UnlockView: View {
                 }
 
                 if faceID {
-                    Button { Task { await model.unlockWithFaceID(db) } } label: {
+                    Button {
+                        withAnimation(Theme.spring) { usePassword = false }
+                        Task { await model.unlockWithFaceID(db) }
+                    } label: {
                         Image(systemName: model.biometrySymbol)
                             .font(.system(size: 30, weight: .regular))
                             .foregroundStyle(Theme.text)
@@ -103,14 +118,7 @@ struct UnlockView: View {
         .fileImporter(isPresented: $pickingKeyFile, allowedContentTypes: [.data]) { result in
             if case let .success(url) = result { model.setKeyFile(url, for: db) }
         }
-        .task {
-            // Al volver a la app se pide Face ID solo; tras bloquear a mano, solo al tocar.
-            if faceID, model.autoFaceID {
-                await model.unlockWithFaceID(db)
-            } else if !faceID {
-                focused = true
-            }
-        }
+        .task { focused = true }
     }
 
     private var passwordField: some View {
@@ -171,6 +179,7 @@ struct UnlockView: View {
 }
 
 /// Primera vez: abrir un archivo KDBX o crear uno nuevo.
+/// Basada en la bienvenida de Luma (Mobbin): icono arriba, título, tres ventajas y el botón abajo.
 struct WelcomeView: View {
     @Environment(AppModel.self) private var model
     @State private var importing = false
@@ -178,43 +187,65 @@ struct WelcomeView: View {
 
     var body: some View {
         ZStack {
-            HushBackground()
-            VStack(alignment: .leading, spacing: 0) {
-                Spacer()
-                AppMark(size: 64).padding(.bottom, 24)
-                Text("Hush")
-                    .font(.largeTitle.weight(.bold))
-                    .tracking(-0.8)
-                Text("Tus contraseñas en un archivo KDBX que controlas tú. El mismo que abres en el Mac.")
-                    .font(.body)
-                    .foregroundStyle(Theme.textSecondary)
-                    .padding(.top, 8)
-                Spacer()
-                VStack(spacing: 12) {
-                    Button("Abrir archivo") { importing = true }
-                        .buttonStyle(PrimaryButtonStyle())
-                    Button { creating = true } label: {
-                        Text("Crear base nueva")
-                            .font(.body.weight(.semibold))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 52)
-                    }
-                    .buttonStyle(.plain)
-                    .glassEffect(.regular.interactive(), in: .capsule)
-                    Text("Puede estar en iCloud Drive, Dropbox o cualquier sitio de la app Archivos.")
-                        .font(.footnote)
-                        .foregroundStyle(Theme.textTertiary)
+            Theme.background.ignoresSafeArea()
+            ScrollView {
+                VStack(spacing: 0) {
+                    AppMark(size: 72)
+                        .padding(.top, 56)
+                        .padding(.bottom, 22)
+                    Text("Tus contraseñas,\nen tu archivo")
+                        .font(.largeTitle.weight(.bold))
+                        .tracking(-0.8)
                         .multilineTextAlignment(.center)
-                        .padding(.top, 4)
+                    Text("Hush abre el mismo archivo KDBX que usas en el Mac. Nada pasa por servidores de nadie.")
+                        .font(.body)
+                        .foregroundStyle(Theme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 10)
+                        .padding(.horizontal, 12)
+                    VStack(alignment: .leading, spacing: 22) {
+                        feature("folder", "Desde donde lo tengas", "iCloud Drive, Dropbox o cualquier carpeta de Archivos.")
+                        feature(model.biometrySymbol, "Entra con \(model.biometryName)", "Escribe la contraseña maestra una vez y después solo te mira.")
+                        feature("key.viewfinder", "Rellena al iniciar sesión", "Contraseñas y códigos 2FA desde la llave del teclado.")
+                    }
+                    .padding(.top, 40)
                 }
+                .padding(.horizontal, 24)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 12)
+            .scrollBounceBehavior(.basedOnSize)
+        }
+        .safeAreaBar(edge: .bottom) {
+            VStack(spacing: 6) {
+                Button("Abrir archivo") { importing = true }
+                    .buttonStyle(PrimaryButtonStyle())
+                Button("Crear base nueva") { creating = true }
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.text)
+                    .frame(height: 44)
+            }
+            .padding(.horizontal, Theme.gutter)
+            .padding(.bottom, 4)
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.kdbx, .data]) { result in
             if case let .success(url) = result { model.add(url) }
         }
         .sheet(isPresented: $creating) { CreateDatabaseSheet() }
+    }
+
+    private func feature(_ symbol: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: symbol)
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(Theme.text)
+                .frame(width: 44, height: 44)
+                .background(RoundedRectangle(cornerRadius: 13, style: .continuous).fill(Theme.backgroundSubtle))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(detail).font(.subheadline).foregroundStyle(Theme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }
 
@@ -248,6 +279,8 @@ struct DatabasesSheet: View {
                             }
                             .foregroundStyle(Theme.text)
                         }
+                        .listRowBackground(Theme.backgroundSubtle)
+                        .listRowSeparator(.hidden)
                         .swipeActions {
                             Button("Quitar", role: .destructive) { model.remove(db) }
                         }
@@ -259,7 +292,11 @@ struct DatabasesSheet: View {
                     Button { importing = true } label: { Label("Abrir otro archivo", systemImage: "folder") }
                     Button { creating = true } label: { Label("Crear base nueva", systemImage: "plus") }
                 }
+                .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
             .navigationTitle("Bases")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -276,6 +313,7 @@ struct DatabasesSheet: View {
             .sheet(isPresented: $creating) { CreateDatabaseSheet() }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Theme.background)
     }
 }
 
@@ -294,6 +332,8 @@ struct CreateDatabaseSheet: View {
         NavigationStack {
             Form {
                 Section("Nombre") { TextField("Nombre", text: $name) }
+                    .listRowBackground(Theme.backgroundSubtle)
+                    .listRowSeparator(.hidden)
                 Section {
                     SecureField("Contraseña maestra", text: $password).textContentType(.newPassword)
                     SecureField("Repítela", text: $repeated).textContentType(.newPassword)
@@ -309,7 +349,11 @@ struct CreateDatabaseSheet: View {
                 } footer: {
                     Text("Si la olvidas no hay forma de recuperar la base. Se guarda en Archivos → En mi iPhone → Hush; puedes moverla a iCloud Drive.")
                 }
+                .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
             .navigationTitle("Base nueva")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -326,5 +370,78 @@ struct CreateDatabaseSheet: View {
                 }
             }
         }
+    }
+}
+
+/// Bloqueo con Face ID: al abrir la app solo se ve el aviso del sistema, sin nada detrás.
+/// Si se cancela o falla, aparece lo justo para reintentar o usar la contraseña.
+struct FaceIDLockView: View {
+    @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
+    let db: SavedDatabase
+    let usePassword: () -> Void
+
+    var body: some View {
+        ZStack {
+            Theme.background.ignoresSafeArea()
+            if model.faceIDFailed {
+                VStack(spacing: 0) {
+                    Spacer()
+                    Image(systemName: model.biometrySymbol)
+                        .font(.system(size: 34, weight: .regular))
+                        .foregroundStyle(Theme.text)
+                        .frame(width: 84, height: 84)
+                        .glassEffect(.regular, in: .circle)
+                        .padding(.bottom, 24)
+                        .accessibilityHidden(true)
+                    Text("Hush está bloqueado")
+                        .font(.title2.weight(.bold))
+                        .tracking(-0.3)
+                    Text(model.unlockError ?? "Usa \(model.biometryName) para abrir \(db.name).")
+                        .font(.subheadline)
+                        .foregroundStyle(model.unlockError == nil ? Theme.textSecondary : Theme.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 6)
+                        .padding(.horizontal, 32)
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Button("Desbloquear con \(model.biometryName)") { retry() }
+                            .buttonStyle(PrimaryButtonStyle())
+                        Button(action: usePassword) {
+                            Text("Usar contraseña")
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(Theme.text)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                        }
+                        .buttonStyle(.plain)
+                        .glassEffect(.regular.interactive(), in: .capsule)
+                    }
+                    .padding(.horizontal, Theme.gutter)
+                    .padding(.bottom, 12)
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
+            } else if model.busy {
+                ProgressView().transition(.opacity)
+            }
+        }
+        .animation(Theme.spring, value: model.faceIDFailed)
+        .animation(Theme.spring, value: model.busy)
+        // Se pide al aparecer y cada vez que la app vuelve de segundo plano (no tras bloquear a mano).
+        // El propio aviso de Face ID pone la app «inactiva» un momento: eso no cuenta como volver.
+        .task {
+            guard !model.faceIDFailed else { return }
+            await model.unlockWithFaceID(db)
+        }
+        .onChange(of: scenePhase) { old, new in
+            guard old == .background, new != .background else { return }
+            model.faceIDFailed = false
+            Task { await model.unlockWithFaceID(db) }
+        }
+    }
+
+    private func retry() {
+        model.faceIDFailed = false
+        Task { await model.unlockWithFaceID(db) }
     }
 }

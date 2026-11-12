@@ -8,5 +8,9 @@
 	<array>
 		<string>group.com.david.hush</string>
 	</array>
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.david.hush</string>
+	</array>
 </dict>
 </plist>

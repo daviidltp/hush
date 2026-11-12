@@ -18,7 +18,7 @@ struct HushBackground: View {
 
 extension Theme {
     /// Luz del fondo.
-    static let glow = dynamic(light: 0xEDEDED, dark: 0x262626)
+    static let glow = dynamic(light: 0xF2F2F2, dark: 0x141414)
 }
 
 /// Botón principal: píldora sólida (blanca en oscuro, negra en claro), como el del Mac.
@@ -71,14 +71,6 @@ struct Card<Content: View>: View {
     }
 }
 
-/// Línea fina entre filas de una tarjeta.
-struct RowDivider: View {
-    var inset: CGFloat = 16
-    var body: some View {
-        Rectangle().fill(Theme.border).frame(height: 1 / UIScreen.main.scale).padding(.leading, inset)
-    }
-}
-
 /// Título pequeño encima de una tarjeta.
 struct SectionLabel: View {
     let text: String
@@ -100,9 +92,10 @@ struct EntryAvatar: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: size * 0.3, style: .continuous).fill(Theme.fill)
+            // Los logos van sobre blanco, como en el Mac: casi todos están pensados para fondo claro.
+            RoundedRectangle(cornerRadius: size * 0.3, style: .continuous).fill(icon == nil ? Theme.fill : Color.white)
             if let icon {
-                Image(uiImage: icon).resizable().scaledToFit().padding(size * 0.18)
+                Image(uiImage: icon).resizable().interpolation(.high).scaledToFit().padding(size * 0.18)
             } else {
                 Text(String(title.trimmingCharacters(in: .whitespaces).first ?? "•").uppercased())
                     .font(.system(size: size * 0.42, weight: .semibold))
@@ -142,7 +135,7 @@ struct MeterBar: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.fill)
+                Capsule().fill(Theme.track)
                 Capsule().fill(tint).frame(width: max(0, min(1, fraction)) * geo.size.width)
             }
         }
@@ -158,7 +151,7 @@ struct CountdownRing: View {
 
     var body: some View {
         ZStack {
-            Circle().stroke(Theme.fill, lineWidth: 3)
+            Circle().stroke(Theme.track, lineWidth: 3)
             Circle().trim(from: 0, to: fraction)
                 .stroke(fraction < 0.2 ? Theme.red : Theme.text, style: StrokeStyle(lineWidth: 3, lineCap: .round))
                 .rotationEffect(.degrees(-90))

@@ -56,6 +56,7 @@ struct EntryEditorView: View {
                     }
                 }
                 .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
                 if draft.kind == .card {
                     Section("Tarjeta") {
@@ -66,6 +67,7 @@ struct EntryEditorView: View {
                         }
                     }
                     .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
                 }
 
                 if draft.kind == .login {
@@ -85,6 +87,7 @@ struct EntryEditorView: View {
                         }
                     }
                     .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
                 }
 
                 Section("Notas") {
@@ -93,6 +96,7 @@ struct EntryEditorView: View {
                         .lineLimit(3...12)
                 }
                 .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
                 Section {
                     ForEach($draft.customFields) { $field in
@@ -121,6 +125,7 @@ struct EntryEditorView: View {
                     }
                 }
                 .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
                 Section {
                     Picker("Grupo", selection: $draft.groupID) {
@@ -136,6 +141,7 @@ struct EntryEditorView: View {
                         .textInputAutocapitalization(.never)
                 }
                 .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
             }
             .scrollContentBackground(.hidden)
             .background(HushBackground())

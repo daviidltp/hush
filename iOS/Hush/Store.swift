@@ -56,9 +56,7 @@ enum AppGroup {
 
     /// Prepara lo compartido. Se llama al arrancar la app y la extensión.
     static func configure() {
-        if let container {
-            QuickUnlock.directoryOverride = container.appendingPathComponent("Library/Boveda/FaceID", isDirectory: true)
-        }
+        // Las claves de Face ID van en el llavero compartido (ver BiometricKeychain).
     }
 }
 
@@ -93,6 +91,12 @@ enum Preferences {
     }
 
     /// Comprobar filtraciones en internet (solo viajan 5 caracteres de la huella de cada contraseña).
+    /// Logos de las webs (se descargan de cada web, sin servicios de terceros).
+    static var showFavicons: Bool {
+        get { defaults.object(forKey: "showFavicons") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "showFavicons") }
+    }
+
     static var checkBreaches: Bool {
         get { defaults.object(forKey: "checkBreaches") as? Bool ?? false }
         set { defaults.set(newValue, forKey: "checkBreaches") }

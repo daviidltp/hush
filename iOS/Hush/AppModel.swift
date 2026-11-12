@@ -38,6 +38,11 @@ final class AppModel {
     var unlockProgress: (start: Date, expected: Double, done: Bool)?
     /// Tras bloquear a mano no se pide Face ID solo; al volver a la app, sí.
     var autoFaceID = true
+    /// Face ID se ha cancelado o ha fallado: se enseña el botón de reintentar.
+    var faceIDFailed = false
+    /// Ha elegido «Usar contraseña» en el aviso de Face ID: se pasa directo a escribirla.
+    var faceIDWantsPassword = false
+    @ObservationIgnored private var faceIDInProgress = false
 
     // MARK: Avisos
 
@@ -58,7 +63,14 @@ final class AppModel {
     var faceIDEnabled = Preferences.faceIDEnabled {
         didSet {
             Preferences.faceIDEnabled = faceIDEnabled
-            if !faceIDEnabled { databases.forEach { QuickUnlock.forget(key: $0.quickUnlockKey) } }
+            if !faceIDEnabled { databases.forEach { BiometricKeychain.forget($0.quickUnlockKey) } }
+        }
+    }
+    var showFavicons = Preferences.showFavicons {
+        didSet {
+            Preferences.showFavicons = showFavicons
+            if !showFavicons { FaviconStore.shared.clearCache() }
+            version += 1
         }
     }
     var checkBreaches = Preferences.checkBreaches {
@@ -119,7 +131,7 @@ final class AppModel {
             let created = try await Task.detached(priority: .userInitiated) { try Vault.create(at: target, name: clean, unlock: unlock) }.value
             add(url)
             guard var db = selected else { return }
-            if faceIDEnabled, QuickUnlock.isAvailable { try? QuickUnlock.enroll(unlock, key: db.quickUnlockKey) }
+            rememberKey(unlock, for: db)
             db.unlockSeconds = 1
             update(db)
             didOpen(created, db: db, url: url)
@@ -135,7 +147,7 @@ final class AppModel {
     }
 
     func remove(_ db: SavedDatabase) {
-        QuickUnlock.forget(key: db.quickUnlockKey)
+        BiometricKeychain.forget(db.quickUnlockKey)
         databases.removeAll { $0.id == db.id }
         if selectedID == db.id { selectedID = databases.first?.id }
         persist()
@@ -164,8 +176,14 @@ final class AppModel {
 
     // MARK: - Desbloquear
 
+    /// Tras abrir con la contraseña, la recuerda (protegida con Face ID) para no tener que escribirla más.
+    private func rememberKey(_ unlock: UnlockData, for db: SavedDatabase) {
+        guard faceIDEnabled, BiometricKeychain.biometryAvailable else { return }
+        try? BiometricKeychain.save(unlock, account: db.quickUnlockKey)
+    }
+
     func canUseFaceID(_ db: SavedDatabase) -> Bool {
-        faceIDEnabled && QuickUnlock.isEnrolled(key: db.quickUnlockKey)
+        faceIDEnabled && BiometricKeychain.has(db.quickUnlockKey)
     }
 
     var biometryName: String {
@@ -187,7 +205,7 @@ final class AppModel {
                 unlock = UnlockData(masterPassword: password)
             }
             try await open(db, unlock: unlock)
-            if faceIDEnabled, QuickUnlock.isAvailable { try? QuickUnlock.enroll(unlock, key: db.quickUnlockKey) }
+            rememberKey(unlock, for: db)
         } catch {
             log.error("unlock failed: \(String(describing: error), privacy: .public)")
             unlockError = error.localizedDescription
@@ -196,18 +214,25 @@ final class AppModel {
     }
 
     func unlockWithFaceID(_ db: SavedDatabase) async {
-        guard canUseFaceID(db), !busy else { return }
+        guard canUseFaceID(db), !busy, !faceIDInProgress else { return }
+        faceIDInProgress = true
+        defer { faceIDInProgress = false }
         unlockError = nil
         do {
-            let unlock = try await QuickUnlock.unlock(key: db.quickUnlockKey, reason: "Abrir \(db.name)")
+            let unlock = try await BiometricKeychain.load(db.quickUnlockKey, reason: "Abrir \(db.name)")
             try await open(db, unlock: unlock)
-        } catch QuickUnlock.Failure.cancelled {
-            // Prefiere escribir la contraseña.
+        } catch BiometricKeychain.Failure.wantsPassword {
+            faceIDFailed = true
+            faceIDWantsPassword = true
+        } catch BiometricKeychain.Failure.cancelled {
+            faceIDFailed = true
         } catch VaultError.wrongCredentials {
-            QuickUnlock.forget(key: db.quickUnlockKey)
+            BiometricKeychain.forget(db.quickUnlockKey)
             unlockError = "La contraseña maestra ha cambiado. Escríbela para volver a activar \(biometryName)."
+            faceIDFailed = true
         } catch {
             unlockError = error.localizedDescription
+            faceIDFailed = true
         }
     }
 
@@ -246,6 +271,8 @@ final class AppModel {
     }
 
     private func didOpen(_ opened: Vault, db: SavedDatabase, url: URL?) {
+        faceIDFailed = false
+        faceIDWantsPassword = false
         accessedURL = url
         openDatabase = db
         unsaved = false
@@ -269,8 +296,11 @@ final class AppModel {
         auditVersion = -1
         pwned = [:]
         iconCache = [:]
+        FaviconStore.shared.forget()
         unsaved = false
         autoFaceID = !manual
+        faceIDFailed = manual
+        faceIDWantsPassword = false
         clearClipboardIfOurs()
         Task {
             await pending?.value
@@ -418,8 +448,9 @@ final class AppModel {
         }
     }
 
+    /// Icono de una entrada: el propio guardado en la base o, si no hay, el logo de su web.
     func icon(for entry: KDBX.Entry) -> UIImage? {
-        guard let id = entry.customIconUUID else { return nil }
+        guard let id = entry.customIconUUID else { return FaviconStore.shared.image(for: entry.url) }
         if let cached = iconCache[id] { return cached }
         guard let data = vault?.customIconData(id), let image = UIImage(data: data) else { return nil }
         iconCache[id] = image

@@ -110,6 +110,7 @@ struct EntryList: View {
                 ForEach(entries, id: \.uuid) { entry in
                     NavigationLink(value: entry.uuid) { EntryRow(entry: entry) }
                         .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
                         .entryActions(entry, editing: $editing)
                 }
             } header: {
@@ -283,6 +284,7 @@ struct SearchScreen: View {
             ForEach(results, id: \.uuid) { entry in
                 NavigationLink(value: entry.uuid) { EntryRow(entry: entry) }
                     .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
                     .entryActions(entry, editing: $editing)
             }
             if !query.isEmpty, results.isEmpty {

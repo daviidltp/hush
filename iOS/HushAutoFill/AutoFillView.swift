@@ -32,16 +32,16 @@ final class AutoFillModel {
     }
 
     func canUseFaceID(_ db: SavedDatabase) -> Bool {
-        Preferences.faceIDEnabled && QuickUnlock.isEnrolled(key: db.quickUnlockKey)
+        Preferences.faceIDEnabled && BiometricKeychain.has(db.quickUnlockKey)
     }
 
     func unlockWithFaceID() async {
         guard let db = selected, canUseFaceID(db), !busy else { return }
         error = nil
         do {
-            let unlock = try await QuickUnlock.unlock(key: db.quickUnlockKey, reason: "Rellenar con \(db.name)")
+            let unlock = try await BiometricKeychain.load(db.quickUnlockKey, reason: "Rellenar con \(db.name)")
             try await open(db, unlock: unlock)
-        } catch QuickUnlock.Failure.cancelled {
+        } catch BiometricKeychain.Failure.cancelled {
         } catch {
             self.error = error.localizedDescription
         }
@@ -255,5 +255,6 @@ struct AutoFillList: View {
             }
         }
         .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
     }
 }

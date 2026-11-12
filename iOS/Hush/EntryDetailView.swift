@@ -49,7 +49,6 @@ struct EntryDetailView: View {
                         SectionLabel(text: "Adjuntos")
                         Card {
                             ForEach(Array(vault.attachments(of: entry).enumerated()), id: \.element.id) { index, file in
-                                if index > 0 { RowDivider() }
                                 HStack {
                                     Image(systemName: "paperclip").foregroundStyle(Theme.textSecondary)
                                     Text(file.name).lineLimit(1)
@@ -144,15 +143,12 @@ struct EntryDetailView: View {
         if !rows.isEmpty || totp != nil || !entry.url.isEmpty {
             Card {
                 ForEach(Array(rows.enumerated()), id: \.element.label) { index, row in
-                    if index > 0 { RowDivider() }
                     FieldRow(model: row)
                 }
                 if let totp {
-                    if !rows.isEmpty { RowDivider() }
                     TOTPRow(totp: totp)
                 }
                 if !entry.url.isEmpty {
-                    if !rows.isEmpty || totp != nil { RowDivider() }
                     URLRow(url: entry.url)
                 }
             }
@@ -162,7 +158,6 @@ struct EntryDetailView: View {
                 SectionLabel(text: "Otros campos")
                 Card {
                     ForEach(Array(custom.enumerated()), id: \.element.key) { index, field in
-                        if index > 0 { RowDivider() }
                         FieldRow(model: .init(label: field.key, value: resolve(field.value.revealedString), secret: entry.isProtected(field.key)))
                     }
                 }
@@ -335,6 +330,8 @@ struct HistorySheet: View {
                             Text(old.changes(to: entry).map(\.label).joined(separator: ", ").nonEmpty ?? "Sin cambios visibles")
                                 .font(.footnote).foregroundStyle(Theme.textSecondary)
                         }
+                        .listRowBackground(Theme.backgroundSubtle)
+                        .listRowSeparator(.hidden)
                         .swipeActions {
                             Button("Restaurar", systemImage: "arrow.uturn.backward") {
                                 model.mutate { $0.restoreHistory(index, of: id) }
@@ -345,11 +342,14 @@ struct HistorySheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.background)
             .navigationTitle("Historial")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Listo", systemImage: "checkmark") { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
+        .presentationBackground(Theme.background)
     }
 }
 

@@ -26,6 +26,7 @@ struct SettingsScreen: View {
                     }
                 }
                 .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
             }
 
             Section {
@@ -42,6 +43,7 @@ struct SettingsScreen: View {
                 Text("La clave para \(model.biometryName) se guarda cifrada con el chip seguro del iPhone. Si cambian las caras o huellas registradas, hay que volver a escribir la contraseña maestra.")
             }
             .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
             Section {
                 if autoFillOn {
@@ -60,6 +62,7 @@ struct SettingsScreen: View {
                 Text("Rellena contraseñas y códigos 2FA en Safari y en otras apps desde la llave del teclado. Funciona con bases guardadas en iCloud Drive u otras ubicaciones de Archivos.")
             }
             .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
             Section {
                 Picker("Borrar lo copiado", selection: $model.clipboardSeconds) {
@@ -73,18 +76,29 @@ struct SettingsScreen: View {
                 Text("Lo que copias solo se queda en este iPhone: no pasa al Mac por el portapapeles universal.")
             }
             .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
             if model.vault?.recycleBinUUID != nil {
                 Section {
                     Button("Vaciar la papelera", role: .destructive) { confirmEmptyBin = true }
                 }
                 .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
             }
+
+            Section {
+                Toggle("Logos de las webs", isOn: $model.showFavicons).tint(Theme.green)
+            } footer: {
+                Text("Se descargan directamente de cada web, sin pasar por otros servicios.")
+            }
+            .listRowBackground(Theme.backgroundSubtle)
+            .listRowSeparator(.hidden)
 
             Section {
                 Button("Bloquear ahora", systemImage: "lock") { model.lock(manual: true) }
             }
             .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
 
             Section {
                 LabeledContent("Versión", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")
@@ -95,6 +109,7 @@ struct SettingsScreen: View {
                 Text("Hush abre archivos KDBX, el formato abierto que usan muchas apps de contraseñas en el Mac, Windows y el móvil.")
             }
             .listRowBackground(Theme.backgroundSubtle)
+                .listRowSeparator(.hidden)
         }
         .scrollContentBackground(.hidden)
         .background(HushBackground())

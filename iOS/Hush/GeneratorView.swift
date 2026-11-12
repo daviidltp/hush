@@ -55,11 +55,8 @@ struct GeneratorPanel: View {
             Card {
                 if options.usePassphrase {
                     stepperRow("Palabras", value: $options.wordCount, range: 3...10)
-                    RowDivider()
                     toggleRow("Mayúscula inicial", $options.capitalize)
-                    RowDivider()
                     toggleRow("Añadir un número", $options.addNumber)
-                    RowDivider()
                     HStack {
                         Text("Separador")
                         Spacer()
@@ -84,15 +81,10 @@ struct GeneratorPanel: View {
                             .accessibilityValue("\(options.length) caracteres")
                     }
                     .padding(16)
-                    RowDivider()
                     toggleRow("Mayúsculas (A-Z)", $options.uppercase)
-                    RowDivider()
                     toggleRow("Minúsculas (a-z)", $options.lowercase)
-                    RowDivider()
                     toggleRow("Números (0-9)", $options.digits)
-                    RowDivider()
                     toggleRow("Símbolos (!@#…)", $options.symbols)
-                    RowDivider()
                     toggleRow("Evitar parecidos (l, 1, O, 0)", $options.avoidAmbiguous)
                 }
             }
@@ -149,16 +141,20 @@ struct GeneratorSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    GeneratorPanel(value: $value)
-                    Button("Usar contraseña") {
-                        use(value)
-                        dismiss()
-                    }
-                    .buttonStyle(PrimaryButtonStyle())
+                GeneratorPanel(value: $value)
+                    .padding(.horizontal, Theme.gutter)
+                    .padding(.bottom, 24)
+            }
+            .background(Theme.background)
+            // El botón flota sobre el contenido, con el desenfoque del borde de iOS 26 al pasar por debajo.
+            .safeAreaBar(edge: .bottom) {
+                Button("Usar contraseña") {
+                    use(value)
+                    dismiss()
                 }
+                .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, Theme.gutter)
-                .padding(.bottom, 24)
+                .padding(.bottom, 8)
             }
             .navigationTitle("Generador")
             .navigationBarTitleDisplayMode(.inline)
@@ -167,5 +163,6 @@ struct GeneratorSheet: View {
             }
         }
         .presentationDetents([.large])
+        .presentationBackground(Theme.background)
     }
 }

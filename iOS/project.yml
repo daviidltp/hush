@@ -25,6 +25,7 @@ targets:
       path: Hush/Hush.entitlements
       properties:
         com.apple.security.application-groups: [group.com.david.hush]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.david.hush"]
     dependencies:
       - package: Boveda
         product: BovedaCore
@@ -47,11 +48,13 @@ targets:
       - path: Hush/Theme.swift
       - path: Hush/Glass.swift
       - path: Hush/Store.swift
+      - path: Hush/BiometricKeychain.swift
     entitlements:
       path: HushAutoFill/HushAutoFill.entitlements
       properties:
         com.apple.developer.authentication-services.autofill-credential-provider: true
         com.apple.security.application-groups: [group.com.david.hush]
+        keychain-access-groups: ["$(AppIdentifierPrefix)com.david.hush"]
     dependencies:
       - package: Boveda
         product: BovedaCore
