@@ -22,6 +22,12 @@ A native macOS password manager (Swift and SwiftUI) built on **KDBX** files, the
 - Export to CSV or .zip with attachments, with a warning that they are not encrypted.
 - Emergency kit: a printable PDF with everything needed to recover the vault and a blank space to write the master password by hand.
 
+## Install
+
+Download `Hush-x.y.z.dmg` from [Releases](https://github.com/daviidltp/hush/releases), open it and drag Hush to Applications. Every release is signed with a Developer ID and notarized by Apple, so macOS opens it without warnings. Hush then updates itself (Hush → Check for Updates…); updates are verified with an EdDSA signature before installing.
+
+To check a download: compare it with `SHA256SUMS` from the same release, or verify where it was built with `gh attestation verify Hush-x.y.z.dmg -R daviidltp/hush`.
+
 ## Build
 
 Requires macOS 15 or later and the Xcode command line tools (Swift 6.1+).
@@ -62,6 +68,7 @@ Hush follows your Mac’s language: English, Spanish, German, French, Italian an
 ## Credits
 
 - [KDBXKit](https://github.com/shadone/KDBXKit) (BSD 2-Clause), vendored in `Vendor/KDBXKit` with a date patch.
+- [Sparkle](https://sparkle-project.org) (MIT) for updates.
 - Argon2 (CC0 / Apache 2.0), included in KDBXKit.
 - [Public Suffix List](https://publicsuffix.org) (MPL 2.0), in `Sources/BovedaCore/PublicSuffixData.swift`.
 - [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US) for English passphrases, and the [diceware](https://github.com/ulif/diceware) Spanish list.

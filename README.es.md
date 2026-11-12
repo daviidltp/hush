@@ -22,6 +22,12 @@ Gestor de contraseñas para macOS, nativo (Swift y SwiftUI), sobre archivos **KD
 - Exportar a CSV o .zip con adjuntos, con aviso de que van sin cifrar.
 - Kit de emergencia: un PDF para imprimir con lo necesario para recuperar la base y un hueco para escribir a mano la contraseña maestra.
 
+## Instalar
+
+Descarga `Hush-x.y.z.dmg` de [Releases](https://github.com/daviidltp/hush/releases), ábrelo y arrastra Hush a Aplicaciones. Cada versión va firmada con Developer ID y notarizada por Apple, así que macOS la abre sin avisos. Después Hush se actualiza solo (Hush → Buscar actualizaciones…); cada actualización se comprueba con una firma EdDSA antes de instalarse.
+
+Para comprobar una descarga: compárala con `SHA256SUMS` de la misma versión, o verifica dónde se compiló con `gh attestation verify Hush-x.y.z.dmg -R daviidltp/hush`.
+
 ## Compilar
 
 Requiere macOS 15 o posterior y las herramientas de línea de comandos de Xcode (Swift 6.1).
@@ -62,6 +68,7 @@ Hush usa el idioma del Mac: español, inglés, alemán, francés, italiano y por
 ## Créditos
 
 - [KDBXKit](https://github.com/shadone/KDBXKit) (BSD 2-Clause), copia en `Vendor/KDBXKit` con un parche de fechas.
+- [Sparkle](https://sparkle-project.org) (MIT) para las actualizaciones.
 - Argon2 (CC0 / Apache 2.0), incluido en KDBXKit.
 - [Public Suffix List](https://publicsuffix.org) (MPL 2.0), en `Sources/BovedaCore/PublicSuffixData.swift`.
 - [EFF Large Wordlist](https://www.eff.org/dice) (CC BY 3.0 US) para las frases en inglés, y la lista en español de [diceware](https://github.com/ulif/diceware).

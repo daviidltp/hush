@@ -16,7 +16,10 @@ struct BovedaApp: App {
         }
         .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 1280, height: 780)
-        .commands { AppCommands(model: model) }
+        .commands {
+            AppCommands(model: model)
+            UpdateCommands()
+        }
 
         // Entrada abierta en su propia ventana (se puede fijar encima de todo).
         WindowGroup("Entrada", id: "entry", for: PopOutTarget.self) { $target in
@@ -49,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppModel.applyAppearance()
             GlobalHotkey.register()
             BrowserBridge.shared.start()
+            _ = Updates.shared
         }
         #if DEBUG
         // Solo en la versión de pruebas: abre la búsqueda rápida sola para poder revisarla.
