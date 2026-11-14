@@ -109,7 +109,8 @@
   let highlighted = -1;
 
   async function loadEntries() {
-    if (entries) return;
+    // Si Hush estaba bloqueada se vuelve a preguntar siempre: puede que ya la hayas desbloqueado.
+    if (entries && !locked) return;
     const reply = await api.runtime.sendMessage({ type: "list" }).catch(() => ({ error: "offline" }));
     locked = !!reply.locked;
     entries = reply.entries || [];
@@ -165,11 +166,7 @@
     menu.append(head);
 
     if (locked) {
-      menu.append(row("·", "Hush está bloqueada", "Pulsa para desbloquear", () => {
-        api.runtime.sendMessage({ type: "unlock" });
-        entries = null;
-        hide();
-      }, 0));
+      menu.append(row("·", "Hush está bloqueada", "Pulsa para desbloquear", unlockAndWait, 0))
     } else {
       entries.slice(0, 6).forEach((entry, index) => {
         const initial = (entry.title || "?").trim().charAt(0).toUpperCase();
@@ -201,6 +198,26 @@
       action();
     });
     return button;
+  }
+
+  /// Pide a Hush que se desbloquee y, en cuanto lo está, enseña las cuentas en el mismo campo.
+  let waitingUnlock = 0;
+  async function unlockAndWait() {
+    const field = current;
+    hide();
+    api.runtime.sendMessage({ type: "unlock" });
+    const ticket = ++waitingUnlock;
+    const until = Date.now() + 120000;
+    while (Date.now() < until && ticket === waitingUnlock) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      if (ticket !== waitingUnlock) return;
+      await loadEntries();
+      if (entries && !locked) {
+        if (entries.length === 0) hideBadge(); // no hay cuentas de esta web: fuera el icono
+        else if (field?.isConnected && document.activeElement === field) show(field);
+        return;
+      }
+    }
   }
 
   async function choose(entry) {
@@ -319,11 +336,8 @@
     } else if (event.key === "Enter" && highlighted >= 0) {
       event.preventDefault();
       event.stopPropagation();
-      if (locked) {
-        api.runtime.sendMessage({ type: "unlock" });
-        entries = null;
-        hide();
-      } else choose(entries[highlighted]);
+      if (locked) unlockAndWait();
+      else choose(entries[highlighted]);
     } else if (event.key === "Escape" || event.key.length === 1) {
       hide(); // Esc o escribir a mano: la lista se aparta (el icono sigue ahí).
     }

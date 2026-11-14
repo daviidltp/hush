@@ -543,6 +543,10 @@ final class AppModel {
         let start = Date()
         unlockProgress = UnlockProgress(start: start, expected: Preferences.unlockSeconds(for: url) ?? 2)
         do {
+            // Sin esto, si Hush está en segundo plano (desbloqueo desde la barra de menús o el navegador),
+            // macOS la frena (App Nap) y el descifrado tarda el doble.
+            let activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical], reason: "Desbloquear la base")
+            defer { ProcessInfo.processInfo.endActivity(activity) }
             let opened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: url, unlock: unlock) }.value
             Preferences.setUnlockSeconds(Date().timeIntervalSince(start), for: url)
             return opened
@@ -552,11 +556,10 @@ final class AppModel {
         }
     }
 
-    /// Lleva la barra al 100 % y deja verlo un instante antes de entrar.
+    /// Lleva la barra al 100 %. Se entra en seguida: el desbloqueo no espera a ninguna animación.
     private func finishProgress() async {
         guard unlockProgress != nil else { return }
         unlockProgress?.done = true
-        try? await Task.sleep(for: .milliseconds(220))
     }
 
     /// Devuelve true si ha desbloqueado; false si se canceló o falló (entonces toca la contraseña).
