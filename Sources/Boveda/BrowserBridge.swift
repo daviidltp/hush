@@ -220,7 +220,9 @@ final class BrowserBridge {
         guard Self.paired[client] != nil else { return ["error": "unpaired"] }
         guard let model = AppModel.shared else { return ["error": "offline"] }
         if type == "unlock" {
-            model.showMainWindow()
+            // Igual que «Desbloquear» en la barra de menús: pide la huella directamente y, si no hay
+            // o se cancela, abre la ventana con la contraseña.
+            if model.openVaults.isEmpty { Task { _ = await model.unlockFromMenuBar() } }
             return ["ok": true]
         }
         if type == "status" { return ["locked": model.openVaults.isEmpty] }

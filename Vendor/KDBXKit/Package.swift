@@ -113,6 +113,8 @@ let package = Package(
             cSettings: [
                 .headerSearchPath("src"),
                 .headerSearchPath("src/blake2"),
+                // Parche Hush: Argon2 es todo el tiempo de desbloqueo; -O3 lo deja ~15 % más rápido que -Os.
+                .unsafeFlags(["-O3"], .when(configuration: .release)),
             ],
         ),
         .target(
