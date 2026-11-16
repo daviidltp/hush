@@ -16,7 +16,10 @@ struct BovedaApp: App {
         }
         .windowToolbarStyle(.unified(showsTitle: false))
         .defaultSize(width: 1280, height: 780)
-        .commands { AppCommands(model: model) }
+        .commands {
+            AppCommands(model: model)
+            UpdateCommands()
+        }
 
         // Entrada abierta en su propia ventana (se puede fijar encima de todo).
         WindowGroup("Entrada", id: "entry", for: PopOutTarget.self) { $target in
@@ -49,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             AppModel.applyAppearance()
             GlobalHotkey.register()
             BrowserBridge.shared.start()
+            _ = Updates.shared
         }
         #if DEBUG
         // Solo en la versión de pruebas: abre la búsqueda rápida sola para poder revisarla.
@@ -140,7 +144,9 @@ struct AppCommands: Commands {
                 .keyboardShortcut("w")
                 .disabled(!unlocked)
         }
-        CommandGroup(replacing: .saveItem) {
+        // En macOS 26 el hueco «.saveItem» no sale en apps sin documentos: estas opciones van detrás de las de «Nuevo».
+        CommandGroup(after: .newItem) {
+            Divider()
             Button("Guardar") { model.save() }
                 .keyboardShortcut("s")
                 .disabled(!unlocked)
@@ -148,6 +154,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
                 .disabled(!unlocked)
             Divider()
+            Button("Importar contraseñas…") { model.importPasswords() }.disabled(!unlocked)
             Button("Exportar a CSV…") { model.export(withAttachments: false) }.disabled(!unlocked)
             Button("Exportar con adjuntos (.zip)…") { model.export(withAttachments: true) }.disabled(!unlocked)
         }
@@ -155,7 +162,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .pasteboard) {
             Button("Cortar") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
                 .keyboardShortcut("x")
-            Button(entriesFocused && hasEntry ? "Copiar " + (model.selectedEntry?.entry.kind ?? .login).mainValueName : "Copiar") {
+            Button(entriesFocused && hasEntry ? L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName : L("Copiar")) {
                 if entriesFocused && hasEntry { model.copyPassword() } else { NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) }
             }
             .keyboardShortcut("c")
@@ -168,7 +175,7 @@ struct AppCommands: Commands {
         }
         CommandMenu("Entrada") {
             Button("Copiar usuario") { model.copyUserName() }.keyboardShortcut("b").disabled(!hasEntry)
-            Button("Copiar " + (model.selectedEntry?.entry.kind ?? .login).mainValueName) { model.copyPassword() }.disabled(!hasEntry)
+            Button(L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName) { model.copyPassword() }.disabled(!hasEntry)
             Button("Copiar web") { model.copyURL() }.keyboardShortcut("u").disabled(!hasEntry)
             Button("Abrir web") { model.openURL() }.keyboardShortcut("u", modifiers: [.command, .shift]).disabled(!hasEntry)
             Button("Copiar código 2FA") { model.copyTOTP() }.keyboardShortcut("t").disabled(!hasEntry)
@@ -208,6 +215,7 @@ struct AppCommands: Commands {
             Divider()
             Button("Ajustes de la base de datos…") { model.sheet = .databaseSettings }.keyboardShortcut(",", modifiers: [.command, .shift]).disabled(!unlocked)
             Button("Informe de contraseñas…") { model.sheet = .report }.keyboardShortcut("r", modifiers: [.command, .shift]).disabled(!unlocked)
+            Button("Kit de emergencia…") { model.sheet = .emergencyKit }.disabled(!unlocked)
             Button("Descargar los logos de todas las webs") { model.fetchAllFavicons() }.disabled(!unlocked)
             Divider()
             Button("Ordenar grupos A-Z") { model.sortGroups(ascending: true) }.keyboardShortcut(.downArrow).disabled(!unlocked || !listFocused || model.editing != nil || model.sheet != nil)

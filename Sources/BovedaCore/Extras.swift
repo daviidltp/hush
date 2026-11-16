@@ -11,9 +11,9 @@ public enum EntryKind: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .login: return "Inicio de sesión"
-        case .card: return "Tarjeta"
-        case .note: return "Nota segura"
+        case .login: return L("Inicio de sesión")
+        case .card: return L("Tarjeta")
+        case .note: return L("Nota segura")
         }
     }
 
@@ -128,12 +128,15 @@ public struct FieldChange: Identifiable, Equatable {
 public extension KDBX.Entry {
     static func label(for key: String) -> String {
         switch key {
-        case FieldKey.title: return "Título"
-        case FieldKey.userName: return "Usuario"
-        case FieldKey.password: return "Contraseña"
-        case FieldKey.url: return "Web"
-        case FieldKey.notes: return "Notas"
-        case FieldKey.otp: return "Código 2FA"
+        case FieldKey.title: return L("Título")
+        case FieldKey.userName: return L("Usuario")
+        case FieldKey.password: return L("Contraseña")
+        case FieldKey.url: return L("Web")
+        case FieldKey.notes: return L("Notas")
+        case FieldKey.otp: return L("Código 2FA")
+        case CardField.holder: return L("Titular")
+        case CardField.number: return L("Número de tarjeta")
+        case CardField.expiry: return L("Caducidad")
         default: return key
         }
     }
@@ -150,19 +153,19 @@ public extension KDBX.Entry {
         }
         let tagsA = tags.filter { $0 != favoriteTag }.joined(separator: ", ")
         let tagsB = newer.tags.filter { $0 != favoriteTag }.joined(separator: ", ")
-        if tagsA != tagsB { list.append(FieldChange(key: "#tags", label: "Etiquetas", old: tagsA, new: tagsB, secret: false)) }
+        if tagsA != tagsB { list.append(FieldChange(key: "#tags", label: L("Etiquetas"), old: tagsA, new: tagsB, secret: false)) }
         let filesA = binaries.map(\.key).joined(separator: ", ")
         let filesB = newer.binaries.map(\.key).joined(separator: ", ")
-        if filesA != filesB { list.append(FieldChange(key: "#files", label: "Adjuntos", old: filesA, new: filesB, secret: false)) }
+        if filesA != filesB { list.append(FieldChange(key: "#files", label: L("Adjuntos"), old: filesA, new: filesB, secret: false)) }
         let expiryA = Self.expiryText(self), expiryB = Self.expiryText(newer)
-        if expiryA != expiryB { list.append(FieldChange(key: "#expiry", label: "Caducidad", old: expiryA, new: expiryB, secret: false)) }
+        if expiryA != expiryB { list.append(FieldChange(key: "#expiry", label: L("Caducidad"), old: expiryA, new: expiryB, secret: false)) }
         return list
     }
 
     /// «Nunca» o la fecha de caducidad, para comparar versiones.
     static func expiryText(_ entry: KDBX.Entry) -> String {
-        guard entry.times?.expires == true, let date = entry.times?.expiryTime else { return "Nunca" }
-        return date.formatted(Date.FormatStyle(date: .long, time: .omitted).locale(Locale(identifier: "es_ES")))
+        guard entry.times?.expires == true, let date = entry.times?.expiryTime else { return L("Nunca") }
+        return date.formatted(Date.FormatStyle(date: .long, time: .omitted).locale(appLocale))
     }
 }
 

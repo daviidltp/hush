@@ -16,7 +16,7 @@ enum QuickSearchHotkey: Int, CaseIterable {
         case .shiftCommandSpace: return "⇧⌘Espacio"
         case .controlOptionSpace: return "⌃⌥Espacio"
         case .optionCommandP: return "⌥⌘P"
-        case .off: return "Desactivado"
+        case .off: return L("Desactivado")
         }
     }
 
@@ -330,12 +330,12 @@ struct QuickSearchView: View {
 
     private var footer: some View {
         HStack(spacing: 14) {
-            hint("↩", "copiar")
-            hint("⌘B", "usuario")
+            hint("↩", L("copiar"))
+            hint("⌘B", L("usuario"))
             hint("⌘T", "2FA")
-            hint("⌘U", "abrir web")
+            hint("⌘U", L("abrir web"))
             Spacer()
-            hint("esc", "cerrar")
+            hint("esc", L("cerrar"))
         }
         .padding(.horizontal, 16)
         .frame(height: 38)
@@ -356,14 +356,14 @@ struct QuickSearchView: View {
             guard query.isEmpty else { return nil }
             let recent = Set(AppModel.recentEntryKeys)
             let recents = items.prefix { recent.contains(AppModel.recentKey($0.entry.uuid, in: $0.vault.url)) }.count
-            if offset == 0 && recents > 0 { return ("Recientes", recents) }
-            if offset == recents && items.count > recents { return ("Favoritos", items.count - recents) }
+            if offset == 0 && recents > 0 { return (L("Recientes"), recents) }
+            if offset == recents && items.count > recents { return (L("Favoritos"), items.count - recents) }
             return nil
         }
-        guard query.isEmpty else { return offset == 0 ? ("Resultados", items.count) : nil }
+        guard query.isEmpty else { return offset == 0 ? (L("Resultados"), items.count) : nil }
         let favorites = items.filter(\.entry.isFavorite).count
-        if offset == 0 && favorites > 0 { return ("Favoritos", favorites) }
-        if offset == favorites { return ("Todos los elementos", items.count - favorites) }
+        if offset == 0 && favorites > 0 { return (L("Favoritos"), favorites) }
+        if offset == favorites { return (L("Todos los elementos"), items.count - favorites) }
         return nil
     }
 
@@ -377,16 +377,16 @@ struct QuickSearchView: View {
         case .password:
             // Tarjetas y notas no tienen contraseña: se copia su dato principal.
             switch item.entry.kind {
-            case .card: copy(item.value(CardField.number), "Número copiado")
-            case .note: copy(item.entry.notes, "Nota copiada")
-            case .login: copy(item.value(FieldKey.password), "Contraseña copiada")
+            case .card: copy(item.value(CardField.number), L("Número copiado"))
+            case .note: copy(item.entry.notes, L("Nota copiada"))
+            case .login: copy(item.value(FieldKey.password), L("Contraseña copiada"))
             }
-        case .user: copy(item.value(FieldKey.userName), "Usuario copiado")
+        case .user: copy(item.value(FieldKey.userName), L("Usuario copiado"))
         case .totp:
             guard let totp = TOTP.from(item.entry) else { return }
-            copy(totp.code(), "Código copiado")
+            copy(totp.code(), L("Código copiado"))
         case .openURL:
-            copy(item.value(FieldKey.password), "Contraseña copiada")
+            copy(item.value(FieldKey.password), L("Contraseña copiada"))
             if let url = URL.fromUserInput(item.value(FieldKey.url)) { NSWorkspace.shared.open(url) }
         }
     }
@@ -419,12 +419,12 @@ private struct QuickRow: View {
         switch item.entry.kind {
         case .card:
             let digits = item.value(CardField.number).filter(\.isNumber)
-            return digits.count >= 4 ? "•••• " + digits.suffix(4) : "Tarjeta"
+            return digits.count >= 4 ? "•••• " + digits.suffix(4) : L("Tarjeta")
         case .note:
-            return item.entry.notes.split(separator: "\n").first.map(String.init) ?? "Nota"
+            return item.entry.notes.split(separator: "\n").first.map(String.init) ?? L("Nota")
         case .login:
             let user = item.value(FieldKey.userName)
-            return user.isEmpty ? "Sin usuario" : user
+            return user.isEmpty ? L("Sin usuario") : user
         }
     }
 
@@ -432,7 +432,7 @@ private struct QuickRow: View {
         HStack(spacing: 12) {
             QuickIcon(entry: item.entry, vault: item.vault)
             VStack(alignment: .leading, spacing: 1) {
-                Text(item.entry.title.isEmpty ? "Sin título" : item.entry.title).font(.ui(13, .semibold)).foregroundStyle(Theme.text).lineLimit(1)
+                Text(item.entry.title.isEmpty ? L("Sin título") : item.entry.title).font(.ui(13, .semibold)).foregroundStyle(Theme.text).lineLimit(1)
                 Text(subtitle)
                     .font(.ui(12)).foregroundStyle(Theme.textSecondary).lineLimit(1)
             }
@@ -444,10 +444,10 @@ private struct QuickRow: View {
                 Image(systemName: "clock").font(.system(size: 10, weight: .semibold)).foregroundStyle(Theme.textTertiary)
             }
             if compact {
-                IconButton(symbol: "doc.on.doc", help: "Copiar " + item.entry.kind.mainValueName, size: 28) { onCopy() }
+                IconButton(symbol: "doc.on.doc", help: L("Copiar ") + item.entry.kind.mainValueName, size: 28) { onCopy() }
                 Menu {
                     if item.entry.kind == .login { Button("Copiar usuario") { onAction(.user) } }
-                    Button("Copiar " + item.entry.kind.mainValueName) { onAction(.password) }
+                    Button(L("Copiar ") + item.entry.kind.mainValueName) { onAction(.password) }
                     if TOTP.from(item.entry) != nil { Button("Copiar código 2FA") { onAction(.totp) } }
                     if !item.entry.url.isEmpty { Button("Copiar contraseña y abrir web") { onAction(.openURL) } }
                 } label: {
@@ -483,9 +483,9 @@ extension EntryKind {
     /// Lo que copia ↩ en la búsqueda rápida según el tipo de entrada.
     var mainValueName: String {
         switch self {
-        case .login: return "contraseña"
-        case .card: return "número"
-        case .note: return "nota"
+        case .login: return L("contraseña")
+        case .card: return L("número")
+        case .note: return L("nota")
         }
     }
 }
@@ -548,7 +548,7 @@ struct MenuBarContent: View {
     private var header: some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(tab == .generator ? "Generador" : (model.vault?.name ?? "Hush")).font(.ui(17, .semibold))
+                Text(tab == .generator ? L("Generador") : (model.vault?.name ?? "Hush")).font(.ui(17, .semibold))
                 if tab == .vault, model.vault != nil {
                     Text("\(model.count(.all)) entradas").font(.ui(11)).foregroundStyle(Theme.textTertiary)
                 }
@@ -584,9 +584,9 @@ struct MenuBarContent: View {
                     } else if model.touchIDPending {
                         Text("Pon el dedo…")
                     } else if model.canUseTouchID(for: url) {
-                        Label("Desbloquear \(url.deletingPathExtension().lastPathComponent)", systemImage: "touchid")
+                        Label(L("Desbloquear \(url.deletingPathExtension().lastPathComponent)"), systemImage: "touchid")
                     } else {
-                        Text("Desbloquear \(url.deletingPathExtension().lastPathComponent)")
+                        Text(L("Desbloquear \(url.deletingPathExtension().lastPathComponent)"))
                     }
                 }
                 .buttonStyle(GButtonStyle(kind: .primary, compact: true))
@@ -605,18 +605,18 @@ struct MenuBarContent: View {
 
     private var tabBar: some View {
         HStack(spacing: 0) {
-            tabButton("Contraseñas", "key.horizontal", active: tab == .vault) { tab = .vault }
-            tabButton("Generador", "dice", active: tab == .generator) { tab = .generator }
-            tabButton("Abrir Hush", "macwindow", active: false) { dismiss(); model.showMainWindow() }
-            tabButton("Ajustes", "gearshape", active: false) {
+            tabButton(L("Contraseñas"), "key.horizontal", active: tab == .vault) { tab = .vault }
+            tabButton(L("Generador"), "dice", active: tab == .generator) { tab = .generator }
+            tabButton(L("Abrir Hush"), "macwindow", active: false) { dismiss(); model.showMainWindow() }
+            tabButton(L("Ajustes"), "gearshape", active: false) {
                 dismiss()
                 NSApp.activate()
                 model.openSettingsAction?()
             }
             if model.openURLs.isEmpty {
-                tabButton("Salir", "power", active: false) { NSApp.terminate(nil) }
+                tabButton(L("Salir"), "power", active: false) { NSApp.terminate(nil) }
             } else {
-                tabButton("Bloquear", "lock", active: false) { model.lockAll() }
+                tabButton(L("Bloquear"), "lock", active: false) { model.lockAll() }
             }
         }
         .padding(.horizontal, 6)

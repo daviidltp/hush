@@ -119,6 +119,12 @@ enum Preferences {
         set { defaults.set(newValue, forKey: "showFavicons") }
     }
 
+    /// Ofrecer guardar contraseñas nuevas desde el panel de autorrelleno (activado salvo que se apague).
+    static var offerSaveInAutoFill: Bool {
+        get { defaults.object(forKey: "offerSaveInAutoFill") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "offerSaveInAutoFill") }
+    }
+
     static var checkBreaches: Bool {
         get { defaults.object(forKey: "checkBreaches") as? Bool ?? false }
         set { defaults.set(newValue, forKey: "checkBreaches") }

@@ -66,6 +66,7 @@ struct SettingsScreen: View {
                     }
                 }
                 .foregroundStyle(Theme.text)
+                Toggle("Ofrecer guardar contraseñas nuevas", isOn: $model.offerSaveInAutoFill).tint(Theme.green)
                 Toggle("Logos de las webs", isOn: $model.showFavicons).tint(Theme.green)
             }
             .rowStyle()

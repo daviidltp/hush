@@ -29,10 +29,18 @@ public enum QuickUnlock {
 
         public var errorDescription: String? {
             switch self {
+            #if os(iOS)
+            // El iPhone de momento solo está en español.
             case let .unavailable(reason): return "\(QuickUnlock.biometry) no está disponible: \(reason)"
             case .cancelled: return "Has cancelado \(QuickUnlock.biometry)."
             case .invalidated: return "Han cambiado las huellas o caras de \(QuickUnlock.device). Escribe la contraseña maestra para volver a activar \(QuickUnlock.biometry)."
             case .corrupted: return "Los datos de \(QuickUnlock.biometry) no son válidos. Escribe la contraseña maestra."
+            #else
+            case let .unavailable(reason): return L("Touch ID no está disponible: \(reason)")
+            case .cancelled: return L("Has cancelado Touch ID.")
+            case .invalidated: return L("Han cambiado las huellas del Mac. Escribe la contraseña maestra para volver a activar Touch ID.")
+            case .corrupted: return L("Los datos de Touch ID no son válidos. Escribe la contraseña maestra.")
+            #endif
             }
         }
     }
@@ -87,12 +95,16 @@ public enum QuickUnlock {
 
     /// Activa el desbloqueo rápido para esta base de datos. No pide la huella: cifra con la clave pública del enclave.
     public static func enroll(_ unlock: UnlockData, key: String) throws {
+        #if os(iOS)
         guard SecureEnclave.isAvailable else { throw Failure.unavailable("\(device) no tiene Secure Enclave") }
+        #else
+        guard SecureEnclave.isAvailable else { throw Failure.unavailable(L("este Mac no tiene Secure Enclave")) }
+        #endif
         var cfError: Unmanaged<CFError>?
         guard let access = SecAccessControlCreateWithFlags(
             nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, [.privateKeyUsage, .biometryCurrentSet], &cfError
         ) else {
-            throw Failure.unavailable(cfError?.takeRetainedValue().localizedDescription ?? "sin control de acceso")
+            throw Failure.unavailable(cfError?.takeRetainedValue().localizedDescription ?? L("sin control de acceso"))
         }
         let enclaveKey: SecureEnclave.P256.KeyAgreement.PrivateKey
         do {
@@ -123,13 +135,13 @@ public enum QuickUnlock {
         guard let data = try? Data(contentsOf: recordURL(forKey: key)),
               let record = try? JSONDecoder().decode(Record.self, from: data) else { throw Failure.corrupted }
         let context = LAContext()
-        context.localizedCancelTitle = "Usar contraseña"
+        context.localizedCancelTitle = L("Usar contraseña")
         do {
             _ = try await context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
         } catch let error as LAError {
             switch error.code {
             case .userCancel, .appCancel, .systemCancel, .userFallback: throw Failure.cancelled
-            case .biometryLockout: throw Failure.unavailable("demasiados intentos fallidos. Escribe la contraseña.")
+            case .biometryLockout: throw Failure.unavailable(L("demasiados intentos fallidos. Escribe la contraseña."))
             case .biometryNotEnrolled, .biometryNotAvailable: throw Failure.unavailable(error.localizedDescription)
             default: throw Failure.unavailable(error.localizedDescription)
             }

@@ -16,7 +16,7 @@ private struct SheetHeader: View {
                 if let subtitle { Text(subtitle).font(.ui(12)).foregroundStyle(Theme.textSecondary) }
             }
             Spacer()
-            IconButton(symbol: "xmark", help: "Cerrar", size: 28) { dismiss() }
+            IconButton(symbol: "xmark", help: L("Cerrar"), size: 28) { dismiss() }
                 .keyboardShortcut(.cancelAction)
         }
     }
@@ -26,31 +26,31 @@ private struct SheetHeader: View {
 
 struct ShortcutsSheet: View {
     static let groups: [(String, [(String, String)])] = [
-        ("Base de datos", [
-            ("Abrir base de datos", "⌘O"), ("Guardar", "⌘S"), ("Guardar una copia como", "⇧⌘S"),
-            ("Nueva base de datos", "⇧⌘N"), ("Cerrar base de datos", "⌘W"), ("Bloquear", "⌘L"),
-            ("Bloquear todas", "⇧⌘L"), ("Cambiar a la base 1…9", "⌘1…⌘9"), ("Ajustes de la base de datos", "⇧⌘,"), ("Informe de contraseñas", "⇧⌘R"),
-            ("Ajustes de la app", "⌘,"), ("Salir", "⌘Q"),
+        (L("Base de datos"), [
+            (L("Abrir base de datos"), "⌘O"), (L("Guardar"), "⌘S"), (L("Guardar una copia como"), "⇧⌘S"),
+            (L("Nueva base de datos"), "⇧⌘N"), (L("Cerrar base de datos"), "⌘W"), (L("Bloquear"), "⌘L"),
+            (L("Bloquear todas"), "⇧⌘L"), (L("Cambiar a la base 1…9"), "⌘1…⌘9"), (L("Ajustes de la base de datos"), "⇧⌘,"), (L("Informe de contraseñas"), "⇧⌘R"),
+            (L("Ajustes de la app"), "⌘,"), (L("Salir"), "⌘Q"),
         ]),
-        ("Entradas", [
-            ("Nueva entrada", "⌘N"), ("Nuevo grupo", "⌥⌘N"), ("Editar entrada", "↩ o ⌘E"), ("Mover a la papelera", "⌫ o ⌘⌫"),
-            ("Duplicar", "⌘D"), ("Copiar usuario", "⌘B"), ("Copiar contraseña", "⌘C"), ("Copiar web", "⌘U"),
-            ("Abrir web", "⇧⌘U"), ("Copiar código 2FA", "⌘T"), ("Copiar contraseña y 2FA", "⌘Y"),
-            ("Mostrar código 2FA", "⇧⌘T"), ("Ir al grupo de la entrada", "⇧⌘J"),
-            ("Copiar contraseña y abrir web", "⌥⌘U"), ("Copiar entrada", "⌥⌘C"), ("Pegar entrada", "⌥⌘V"),
-            ("Abrir en otra ventana", "⌥⌘O"), ("Historial", "⇧⌘H"), ("Seleccionar varias", "⌘ clic · ⇧ clic"),
+        (L("Entradas"), [
+            (L("Nueva entrada"), "⌘N"), (L("Nuevo grupo"), "⌥⌘N"), (L("Editar entrada"), L("↩ o ⌘E")), (L("Mover a la papelera"), L("⌫ o ⌘⌫")),
+            (L("Duplicar"), "⌘D"), ("Copiar usuario", "⌘B"), (L("Copiar contraseña"), "⌘C"), ("Copiar web", "⌘U"),
+            ("Abrir web", "⇧⌘U"), (L("Copiar código 2FA"), "⌘T"), (L("Copiar contraseña y 2FA"), "⌘Y"),
+            (L("Mostrar código 2FA"), "⇧⌘T"), (L("Ir al grupo de la entrada"), "⇧⌘J"),
+            (L("Copiar contraseña y abrir web"), "⌥⌘U"), ("Copiar entrada", "⌥⌘C"), ("Pegar entrada", "⌥⌘V"),
+            (L("Abrir en otra ventana"), "⌥⌘O"), (L("Historial"), "⇧⌘H"), (L("Seleccionar varias"), "⌘ clic · ⇧ clic"),
         ]),
-        ("Vista", [
-            ("Ordenar grupos A-Z", "⌘↓"), ("Ordenar grupos Z-A", "⌘↑"), ("Mostrar u ocultar contraseñas", "⇧⌘C"),
-            ("Mostrar u ocultar usuarios", "⇧⌘B"), ("Ir a los grupos", "F1"), ("Ir a las entradas", "F2"),
-            ("Buscar", "⌘F o F3"), ("Borrar la búsqueda", "esc"), ("Minimizar", "⌘M"), ("Ocultar ventana", "⇧⌘M"),
-            ("Ver estos atajos", "⌘/"), ("Búsqueda rápida (en cualquier app)", "⇧⌘P"),
+        (L("Vista"), [
+            (L("Ordenar grupos A-Z"), "⌘↓"), (L("Ordenar grupos Z-A"), "⌘↑"), (L("Mostrar u ocultar contraseñas"), "⇧⌘C"),
+            (L("Mostrar u ocultar usuarios"), "⇧⌘B"), (L("Ir a los grupos"), "F1"), (L("Ir a las entradas"), "F2"),
+            (L("Buscar"), L("⌘F o F3")), (L("Borrar la búsqueda"), "esc"), (L("Minimizar"), "⌘M"), (L("Ocultar ventana"), "⇧⌘M"),
+            (L("Ver estos atajos"), "⌘/"), (L("Búsqueda rápida (en cualquier app)"), "⇧⌘P"),
         ]),
     ]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            SheetHeader(title: "Atajos de teclado")
+            SheetHeader(title: L("Atajos de teclado"))
             ScrollView {
                 HStack(alignment: .top, spacing: 28) {
                     ForEach(Self.groups, id: \.0) { group in
@@ -60,7 +60,7 @@ struct ShortcutsSheet: View {
                                 HStack {
                                     Text(item.0).font(.ui(13))
                                     Spacer(minLength: 12)
-                                    Kbd(text: item.0.hasPrefix("Búsqueda rápida") ? (QuickSearchHotkey(rawValue: Preferences.quickSearchHotkey) ?? .shiftCommandP).label : item.1)
+                                    Kbd(text: item.0.hasPrefix(L("Búsqueda rápida")) ? (QuickSearchHotkey(rawValue: Preferences.quickSearchHotkey) ?? .shiftCommandP).label : item.1)
                                 }
                             }
                         }
@@ -84,20 +84,20 @@ struct ReportSheet: View {
         let entries = model.vault.map(model.auditableEntries) ?? []
         let report = PasswordReport(entries: entries)
         VStack(alignment: .leading, spacing: 18) {
-            SheetHeader(title: "Informe de contraseñas",
-                        subtitle: report.issueCount == 0 ? "Todo en orden: ninguna contraseña débil, repetida ni caducada." : "\(entries.count) entradas revisadas en este Mac. Nada sale del ordenador.")
+            SheetHeader(title: L("Informe de contraseñas"),
+                        subtitle: report.issueCount == 0 ? L("Todo en orden: ninguna contraseña débil, repetida ni caducada.") : L("\(entries.count) entradas revisadas en este Mac. Nada sale del ordenador."))
             HStack(spacing: 10) {
-                stat("Débiles", report.weak.count, Theme.red)
-                stat("Repetidas", report.reused.count, Theme.amber)
-                stat("Vacías", report.empty.count, Theme.textSecondary)
-                stat("Caducadas", report.expired.count, Theme.textSecondary)
+                stat(L("Débiles"), report.weak.count, Theme.red)
+                stat(L("Repetidas"), report.reused.count, Theme.amber)
+                stat(L("Vacías"), report.empty.count, Theme.textSecondary)
+                stat(L("Caducadas"), report.expired.count, Theme.textSecondary)
             }
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    section("Débiles", report.weak)
-                    section("Repetidas", report.reused)
-                    section("Sin contraseña", report.empty)
-                    section("Caducadas", report.expired)
+                    section(L("Débiles"), report.weak)
+                    section(L("Repetidas"), report.reused)
+                    section(L("Sin contraseña"), report.empty)
+                    section(L("Caducadas"), report.expired)
                 }
             }
         }
@@ -130,7 +130,7 @@ struct ReportSheet: View {
                         HStack(spacing: 10) {
                             EntryIcon(entry: item.entry, size: 28)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text(item.entry.title.isEmpty ? "Sin título" : item.entry.title).font(.ui(13, .medium))
+                                Text(item.entry.title.isEmpty ? L("Sin título") : item.entry.title).font(.ui(13, .medium))
                                 Text(item.entry.userName).font(.ui(11)).foregroundStyle(Theme.textTertiary)
                             }
                             Spacer()
@@ -153,7 +153,7 @@ struct TOTPSheet: View {
 
     var body: some View {
         VStack(spacing: 18) {
-            SheetHeader(title: model.selectedEntry?.entry.title ?? "Código 2FA")
+            SheetHeader(title: model.selectedEntry?.entry.title ?? L("Código 2FA"))
             if let entry = model.selectedEntry?.entry, let totp = TOTP.from(entry) {
                 TimelineView(.periodic(from: .now, by: 1)) { context in
                     let remaining = totp.secondsRemaining(at: context.date)
@@ -167,7 +167,7 @@ struct TOTPSheet: View {
                             .tint(remaining <= 5 ? Theme.red : Theme.text)
                             .frame(width: 220)
                         Text("Caduca en \(remaining) s").font(.ui(12)).foregroundStyle(Theme.textSecondary)
-                        Button("Copiar") { model.copy(totp.code(), label: "Código 2FA") }
+                        Button(L("Copiar")) { model.copy(totp.code(), label: L("Código 2FA")) }
                             .buttonStyle(GButtonStyle(kind: .primary))
                     }
                 }
@@ -194,11 +194,11 @@ struct DatabaseSettingsSheet: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            SheetHeader(title: "Ajustes de la base de datos", subtitle: model.vault?.url.lastPathComponent)
+            SheetHeader(title: L("Ajustes de la base de datos"), subtitle: model.vault?.url.lastPathComponent)
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     LabeledField("Nombre") { GField(focused: false) { TextField("", text: $name) } }
-                    LabeledField("Descripción") { GField(focused: false) { TextField("Opcional", text: $description) } }
+                    LabeledField(L("Descripción")) { GField(focused: false) { TextField(L("Opcional"), text: $description) } }
                     Toggle("Usar papelera (lo borrado se puede recuperar)", isOn: $recycleBin).toggleStyle(.switch).controlSize(.small)
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle("Historial ilimitado", isOn: $unlimitedHistory).toggleStyle(.switch).controlSize(.small)
@@ -224,7 +224,7 @@ struct DatabaseSettingsSheet: View {
                             .font(.ui(12)).foregroundStyle(Theme.textSecondary).fixedSize(horizontal: false, vertical: true)
                         GField(focused: false) { SecureField("Nueva contraseña", text: $newPassword).font(.mono(13)) }
                         let strength = PasswordStrength.of(newPassword)
-                        StrengthBar(fraction: newPassword.isEmpty ? 0 : strength.fraction, label: newPassword.count < 8 ? "Mínimo 8 caracteres" : strength.label)
+                        StrengthBar(fraction: newPassword.isEmpty ? 0 : strength.fraction, label: newPassword.count < 8 ? L("Mínimo 8 caracteres") : strength.label)
                         GField(focused: false) { SecureField("Repítela", text: $confirmPassword).font(.mono(13)) }
                         if !confirmPassword.isEmpty && confirmPassword != newPassword {
                             Text("No coinciden").font(.ui(12)).foregroundStyle(Theme.red)
@@ -293,7 +293,7 @@ private struct GeneralSettings: View {
     @State private var openAtLogin = AppModel.opensAtLogin
     @State private var hotkey = QuickSearchHotkey(rawValue: Preferences.quickSearchHotkey) ?? .shiftCommandP
     @State private var showShortcuts = false
-    @State private var hotkeyError: String? = GlobalHotkey.failed.map { "\($0.label) ya lo usa otra app o el sistema. Elige otro." }
+    @State private var hotkeyError: String? = GlobalHotkey.failed.map { L("\($0.label) ya lo usa otra app o el sistema. Elige otro.") }
     @State private var revertedTo: QuickSearchHotkey?
 
     var body: some View {
@@ -357,7 +357,7 @@ private struct GeneralSettings: View {
                 hotkeyError = nil
             } else {
                 // Se vuelve al atajo que funcionaba y se explica por qué.
-                hotkeyError = "\(v.label) ya lo usa otra app o el sistema. Elige otro."
+                hotkeyError = L("\(v.label) ya lo usa otra app o el sistema. Elige otro.")
                 let previous = QuickSearchHotkey(rawValue: Preferences.quickSearchHotkey) ?? .shiftCommandP
                 GlobalHotkey.register(previous)
                 revertedTo = previous
@@ -366,7 +366,7 @@ private struct GeneralSettings: View {
         }
         .onChange(of: openAtLogin) { _, v in
             do { try AppModel.setOpensAtLogin(v) } catch {
-                model.alert = AppModel.AlertMessage(title: "No se ha podido cambiar", message: error.localizedDescription)
+                model.alert = AppModel.AlertMessage(title: L("No se ha podido cambiar"), message: error.localizedDescription)
                 openAtLogin = AppModel.opensAtLogin
             }
         }

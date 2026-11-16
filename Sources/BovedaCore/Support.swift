@@ -35,7 +35,7 @@ public struct BackupStore {
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
             try prune(base: base)
         } catch {
-            throw VaultError.writeFailed("no se pudo hacer la copia de seguridad (\(error.localizedDescription))")
+            throw VaultError.writeFailed(L("no se pudo hacer la copia de seguridad (\(error.localizedDescription))"))
         }
     }
 
@@ -73,6 +73,13 @@ enum SecureRandom {
             precondition(status == errSecSuccess, "Sin generador aleatorio del sistema")
             if value < limit { return Int(value % bound) }
         }
+    }
+
+    static func bytes(_ count: Int) -> Data {
+        var data = Data(count: count)
+        let status = data.withUnsafeMutableBytes { SecRandomCopyBytes(kSecRandomDefault, count, $0.baseAddress!) }
+        precondition(status == errSecSuccess, "Sin generador aleatorio del sistema")
+        return data
     }
 }
 
@@ -149,9 +156,14 @@ public enum PasswordGenerator {
         return String(chars)
     }
 
-    /// Frase de palabras en español elegidas al azar (13 bits por palabra).
+    /// Palabras para las frases: en español si la app está en español; si no, la lista inglesa de la EFF.
+    static var passphraseWords: [String] {
+        appLocale.language.languageCode?.identifier == "es" ? SpanishWords.list : EnglishWords.list
+    }
+
+    /// Frase de palabras elegidas al azar (unos 13 bits por palabra).
     public static func passphrase(_ options: GeneratorOptions) -> String {
-        let words = SpanishWords.list
+        let words = passphraseWords
         var parts = (0..<max(options.wordCount, 2)).map { _ in words[SecureRandom.uniform(words.count)] }
         if options.capitalize { parts = parts.map { $0.prefix(1).uppercased() + $0.dropFirst() } }
         if options.addNumber { parts.append(String(SecureRandom.uniform(100))) }
@@ -160,7 +172,7 @@ public enum PasswordGenerator {
 
     public static func entropy(_ options: GeneratorOptions) -> Double {
         if options.usePassphrase {
-            return Double(max(options.wordCount, 2)) * log2(Double(SpanishWords.list.count)) + (options.addNumber ? log2(100) : 0)
+            return Double(max(options.wordCount, 2)) * log2(Double(passphraseWords.count)) + (options.addNumber ? log2(100) : 0)
         }
         let pool = groups(options).reduce(0) { $0 + $1.count }
         return Double(options.length) * log2(Double(max(pool, 2)))
@@ -200,11 +212,11 @@ public enum PasswordStrength: Int, Comparable {
 
     public var label: String {
         switch self {
-        case .veryWeak: return "Muy débil"
-        case .weak: return "Débil"
-        case .fair: return "Aceptable"
-        case .strong: return "Fuerte"
-        case .veryStrong: return "Muy fuerte"
+        case .veryWeak: return L("Muy débil")
+        case .weak: return L("Débil")
+        case .fair: return L("Aceptable")
+        case .strong: return L("Fuerte")
+        case .veryStrong: return L("Muy fuerte")
         }
     }
 

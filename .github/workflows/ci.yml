@@ -15,7 +15,7 @@ concurrency:
 jobs:
   test:
     name: swift test
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -25,9 +25,16 @@ jobs:
         run: swift --version
       - name: Tests
         run: swift test
+      - name: Translations
+        run: |
+          python3 scripts/i18n.py extract
+          python3 scripts/i18n.py audit
+          python3 scripts/i18n.py check
       - name: Extension
         run: |
           node --check Extension/src/background.js
           node --check Extension/src/content.js
           node --check Extension/src/popup.js
+          node --check Extension/src/page.js
+          node --check Extension/src/relay.js
           python3 Extension/build.py "$RUNNER_TEMP/extension" com.example.hush 0.0.0

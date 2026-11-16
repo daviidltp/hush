@@ -22,6 +22,8 @@ final class AutoFillModel {
     /// Guardando una entrada nueva, y por qué no se pudo.
     var saving = false
     var saveError: String?
+    /// Ajuste de la app: si está apagado, el panel no ofrece guardar contraseñas nuevas.
+    let offersSave = Preferences.offerSaveInAutoFill
     /// La tarjeta de «Guardar contraseña» está abierta encima de la lista.
     var composing = false
     var busy = false
@@ -470,7 +472,7 @@ struct AutoFillList: View {
         let suggestions = model.suggestions
         let others = model.others(query)
         List {
-            if model.mode == .password, query.isEmpty {
+            if model.mode == .password, model.offersSave, query.isEmpty {
                 Section {
                     if suggestions.isEmpty {
                         NewPasswordCard(service: model.serviceName) { model.composing = true }

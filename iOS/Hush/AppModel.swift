@@ -73,6 +73,8 @@ final class AppModel {
             version += 1
         }
     }
+    /// En el panel de autorrelleno aparece «Guardar nueva contraseña».
+    var offerSaveInAutoFill = Preferences.offerSaveInAutoFill { didSet { Preferences.offerSaveInAutoFill = offerSaveInAutoFill } }
     var browseStyle = Preferences.browseStyle { didSet { Preferences.browseStyle = browseStyle } }
     var appearance = Preferences.appearance { didSet { Preferences.appearance = appearance } }
     var checkBreaches = Preferences.checkBreaches {
