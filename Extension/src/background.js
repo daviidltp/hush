@@ -287,21 +287,22 @@ async function handleSave(message, sender, url) {
     }
 
     case "save-capture": {
+      // Capturas seguidas en la misma pestaña: solo cuenta la última (las respuestas pueden llegar desordenadas).
+      const generation = (captureGeneration.get(tabId) ?? 0) + 1;
+      captureGeneration.set(tabId, generation);
+      const latest = () => captureGeneration.get(tabId) === generation;
       const password = text(message.password, 4096);
       if (!password || !/^https?:/.test(url)) return { ok: false };
       if (!(await offersToSave(url))) return { ok: false };
       let user = text(message.user, 1024).trim();
       const site = await siteOf(url);
-      if (!site) return { ok: false };
+      if (!site || !latest()) return { ok: false };
       const remembered = tabUsers.get(tabId);
       if (!user && remembered && remembered.expires > Date.now() && remembered.site === site) user = remembered.user;
       const pending = offers.get(tabId);
       if (pending && pending.site === site && pending.user === user && pending.password === password) return { ok: true };
-      // Capturas seguidas en la misma pestaña: solo cuenta la última (las respuestas de Hush pueden llegar desordenadas).
-      const generation = (captureGeneration.get(tabId) ?? 0) + 1;
-      captureGeneration.set(tabId, generation);
       const check = await call("save-check", { url, user, password });
-      if (captureGeneration.get(tabId) !== generation) return { ok: false };
+      if (!latest()) return { ok: false };
       if (check.known && offers.get(tabId)?.site === site) {
         // Lo que acabas de escribir ya está en Hush: una oferta anterior de esta web (p. ej. una contraseña
         // equivocada justo antes) ya no vale. Se retira y la página quita su panel.
