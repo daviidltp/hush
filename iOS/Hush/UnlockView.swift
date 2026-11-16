@@ -379,6 +379,8 @@ struct FaceIDLockView: View {
     @Environment(\.scenePhase) private var scenePhase
     let db: SavedDatabase
     let usePassword: () -> Void
+    /// La app ha estado en segundo plano: al volver a estar activa se pide Face ID.
+    @State private var returning = false
 
     var body: some View {
         ZStack {
@@ -427,13 +429,17 @@ struct FaceIDLockView: View {
         .animation(Theme.spring, value: model.faceIDFailed)
         .animation(Theme.spring, value: model.busy)
         // Se pide al aparecer y cada vez que la app vuelve de segundo plano (no tras bloquear a mano).
+        // Solo con la app ya activa: al bloquear al salir esta pantalla aparece estando en segundo plano,
+        // y si se pedía entonces, la petición se quedaba colgada y al volver no salía nada (pantalla en blanco).
         // El propio aviso de Face ID pone la app «inactiva» un momento: eso no cuenta como volver.
         .task {
-            guard !model.faceIDFailed else { return }
+            guard scenePhase == .active, !model.faceIDFailed else { return }
             await model.unlockWithFaceID(db)
         }
-        .onChange(of: scenePhase) { old, new in
-            guard old == .background, new != .background else { return }
+        .onChange(of: scenePhase) { _, new in
+            if new == .background { returning = true }
+            guard new == .active, returning else { return }
+            returning = false
             model.faceIDFailed = false
             Task { await model.unlockWithFaceID(db) }
         }
