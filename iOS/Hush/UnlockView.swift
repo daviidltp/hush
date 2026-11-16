@@ -433,7 +433,9 @@ struct FaceIDLockView: View {
         // y si se pedía entonces, la petición se quedaba colgada y al volver no salía nada (pantalla en blanco).
         // El propio aviso de Face ID pone la app «inactiva» un momento: eso no cuenta como volver.
         .task {
-            guard scenePhase == .active, !model.faceIDFailed else { return }
+            guard !model.faceIDFailed else { return }
+            // Creada estando fuera: se pide al volver a estar activa.
+            guard scenePhase == .active else { returning = true; return }
             await model.unlockWithFaceID(db)
         }
         .onChange(of: scenePhase) { _, new in
