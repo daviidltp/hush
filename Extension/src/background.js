@@ -243,6 +243,8 @@ async function offersToSave(url) {
 // Versiones anteriores guardaban «No preguntar» en la extensión; ahora vive en Hush.
 api.storage.local.remove("neverSave").catch(() => {});
 
+const captureGeneration = new Map();
+
 function forgetOffer(tabId) {
   const offer = offers.get(tabId);
   if (offer) offer.password = "";
@@ -295,8 +297,12 @@ async function handleSave(message, sender, url) {
       if (!user && remembered && remembered.expires > Date.now() && remembered.site === site) user = remembered.user;
       const pending = offers.get(tabId);
       if (pending && pending.site === site && pending.user === user && pending.password === password) return { ok: true };
+      // Capturas seguidas en la misma pestaña: solo cuenta la última (las respuestas de Hush pueden llegar desordenadas).
+      const generation = (captureGeneration.get(tabId) ?? 0) + 1;
+      captureGeneration.set(tabId, generation);
       const check = await call("save-check", { url, user, password });
-      if (check.known && pending?.site === site) {
+      if (captureGeneration.get(tabId) !== generation) return { ok: false };
+      if (check.known && offers.get(tabId)?.site === site) {
         // Lo que acabas de escribir ya está en Hush: una oferta anterior de esta web (p. ej. una contraseña
         // equivocada justo antes) ya no vale. Se retira y la página quita su panel.
         forgetOffer(tabId);
@@ -374,4 +380,5 @@ async function handleSave(message, sender, url) {
 api.tabs.onRemoved.addListener((tabId) => {
   forgetOffer(tabId);
   tabUsers.delete(tabId);
+  captureGeneration.delete(tabId);
 });
