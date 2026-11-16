@@ -545,7 +545,7 @@ final class AppModel {
         do {
             // Sin esto, si Hush está en segundo plano (desbloqueo desde la barra de menús o el navegador),
             // macOS la frena (App Nap) y el descifrado tarda el doble.
-            let activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical], reason: "Desbloquear la base")
+            let activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiated, .latencyCritical], reason: "Unlocking database")
             defer { ProcessInfo.processInfo.endActivity(activity) }
             let opened = try await Task.detached(priority: .userInitiated) { try Vault.open(url: url, unlock: unlock) }.value
             Preferences.setUnlockSeconds(Date().timeIntervalSince(start), for: url)
