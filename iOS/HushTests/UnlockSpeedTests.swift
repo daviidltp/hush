@@ -17,11 +17,14 @@ final class UnlockSpeedTests: XCTestCase {
     }
 
     /// Base con AES-KDF de 1 millón de pasadas (como la demo). Antes: 5 s en el simulador.
-    /// `TEST_RUNNER_HUSH_AES_DB=~/Desktop/demo-boveda/Demo.kdbx xcodebuild test …`
+    /// `TEST_RUNNER_HUSH_AES_DB=~/Desktop/demo-boveda/Demo.kdbx TEST_RUNNER_HUSH_AES_DB_PASSWORD=… xcodebuild test …`
     func testAESKDFOpensQuickly() throws {
-        guard let path = ProcessInfo.processInfo.environment["HUSH_AES_DB"] else { throw XCTSkip("Sin base AES-KDF") }
+        let environment = ProcessInfo.processInfo.environment
+        guard let path = environment["HUSH_AES_DB"], let password = environment["HUSH_AES_DB_PASSWORD"] else {
+            throw XCTSkip("Sin base AES-KDF")
+        }
         let start = Date()
-        _ = try Vault.open(url: URL(fileURLWithPath: path), unlock: UnlockData(masterPassword: "demo1234"))
+        _ = try Vault.open(url: URL(fileURLWithPath: path), unlock: UnlockData(masterPassword: password))
         XCTAssertLessThan(Date().timeIntervalSince(start), 2.5)
     }
 }

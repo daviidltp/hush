@@ -17,7 +17,7 @@ struct UnlockView: View {
 
     private var faceID: Bool { model.canUseFaceID(db) }
 
-    /// Solo en la versión de pruebas: `-HushTestPassword demo1234` al abrir rellena la contraseña de la base demo.
+    /// Solo en la versión de pruebas: `-HushTestPassword <contraseña>` al abrir rellena la contraseña de la base demo.
     static var testPassword: String {
         #if DEBUG
         return UserDefaults.standard.string(forKey: "HushTestPassword") ?? ""
