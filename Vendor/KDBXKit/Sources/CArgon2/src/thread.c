@@ -18,6 +18,9 @@
 #if !defined(ARGON2_NO_THREADS)
 
 #include "thread.h"
+#if defined(__APPLE__)
+#include <pthread/qos.h>
+#endif
 #if defined(_WIN32)
 #include <windows.h>
 #endif
@@ -31,7 +34,27 @@ int argon2_thread_create(argon2_thread_handle_t *handle,
     *handle = _beginthreadex(NULL, 0, func, args, 0, NULL);
     return *handle != 0 ? 0 : -1;
 #else
+#if defined(__APPLE__)
+    /* Parche Hush: en macOS un hilo nuevo no hereda la prioridad (QoS) de quien lo crea y queda en
+     * «default», así que con el Mac ocupado las pasadas van a los núcleos lentos y el descifrado tarda
+     * bastante más. Si quien llama tiene a alguien esperando (user-initiated o más), los hilos van a la
+     * prioridad más alta; si no, heredan la de quien llama. */
+    {
+        qos_class_t caller = qos_class_self();
+        qos_class_t qos = caller >= QOS_CLASS_USER_INITIATED ? QOS_CLASS_USER_INTERACTIVE : caller;
+        pthread_attr_t attr;
+        int result;
+        if (pthread_attr_init(&attr) != 0) {
+            return -1;
+        }
+        pthread_attr_set_qos_class_np(&attr, qos, 0);
+        result = pthread_create(handle, &attr, func, args);
+        pthread_attr_destroy(&attr);
+        return result;
+    }
+#else
     return pthread_create(handle, NULL, func, args);
+#endif
 #endif
 }
 
