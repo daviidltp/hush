@@ -6,6 +6,8 @@ import SwiftUI
 struct BrowserSettings: View {
     @State private var paired = BrowserBridge.paired
     @State private var passkeys = Preferences.passkeysEnabled
+    @State private var offerToSave = Preferences.offerToSaveLogins
+    @State private var neverSites = Preferences.neverSaveSites
 
     var body: some View {
         Form {
@@ -37,6 +39,37 @@ struct BrowserSettings: View {
                     .font(.ui(11)).foregroundStyle(Theme.textTertiary)
             }
 
+            Section {
+                Toggle("Ofrecer guardar contraseñas nuevas", isOn: $offerToSave)
+                    .onChange(of: offerToSave) { Preferences.offerToSaveLogins = offerToSave }
+            } footer: {
+                Text("Cuando entres o te registres en una web con una cuenta que Hush no tiene, la extensión te ofrecerá guardarla; si ya la tienes con otra contraseña, actualizarla. Apagado, la extensión no mira lo que escribes.")
+                    .font(.ui(11)).foregroundStyle(Theme.textTertiary)
+            }
+
+            Section {
+                if neverSites.isEmpty {
+                    Text("Ninguna todavía.").foregroundStyle(Theme.textSecondary)
+                }
+                ForEach(neverSites, id: \.self) { site in
+                    HStack {
+                        Text(site)
+                        Spacer()
+                        Button("Quitar") {
+                            Preferences.neverSaveSites.removeAll { $0 == site }
+                            neverSites = Preferences.neverSaveSites
+                        }
+                        .help(L("Volver a ofrecer guardar en \(site)"))
+                    }
+                }
+            } header: {
+                Text("No preguntar en estas webs")
+            } footer: {
+                Text("Webs en las que pulsaste «No preguntar en esta web». Si quitas una, Hush volverá a ofrecer guardar ahí.")
+                    .font(.ui(11)).foregroundStyle(Theme.textTertiary)
+            }
+            .disabled(!offerToSave)
+
             Section("Navegadores conectados") {
                 if paired.isEmpty {
                     Text("Ninguno todavía.").foregroundStyle(Theme.textSecondary)
@@ -57,7 +90,14 @@ struct BrowserSettings: View {
             }
         }
         .formStyle(.grouped)
-        .onAppear { paired = BrowserBridge.paired }
+        .onAppear {
+            paired = BrowserBridge.paired
+            neverSites = Preferences.neverSaveSites
+        }
+        // La extensión puede añadir webs con la ventana de Ajustes abierta.
+        .onReceive(NotificationCenter.default.publisher(for: BrowserBridge.neverSaveChanged)) { _ in
+            neverSites = Preferences.neverSaveSites
+        }
     }
 
     private func step<Accessory: View>(_ number: String, _ text: String, @ViewBuilder accessory: () -> Accessory) -> some View {

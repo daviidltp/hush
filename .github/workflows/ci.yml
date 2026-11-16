@@ -37,4 +37,5 @@ jobs:
           node --check Extension/src/popup.js
           node --check Extension/src/page.js
           node --check Extension/src/relay.js
+          node --check Extension/src/save.js
           python3 Extension/build.py "$RUNNER_TEMP/extension" com.example.hush 0.0.0

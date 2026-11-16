@@ -82,10 +82,26 @@
     return hidden?.value?.trim() || "";
   }
 
+  // Si Hush tiene apagado «Ofrecer guardar contraseñas nuevas» (o esta web está en «No preguntar»), no se
+  // captura nada. Se pregunta al cargar y al entrar en un campo, para tener la respuesta antes de enviar:
+  // al entrar, la web suele cambiar de página y no daría tiempo a preguntar en ese momento.
+  let enabled = false;
+  let askedAt = 0;
+  function refreshEnabled() {
+    if (Date.now() - askedAt < 5000) return;
+    askedAt = Date.now();
+    send({ type: "save-enabled" }).then((reply) => { enabled = reply?.enabled === true; });
+  }
+  refreshEnabled();
+  document.addEventListener("focusin", (event) => {
+    if (event.composedPath()[0] instanceof HTMLInputElement) refreshEnabled();
+  }, true);
+
   let lastSent = "";
   let lastTimer;
 
   function trigger(origin) {
+    if (!enabled) return;
     const scope = origin?.form || origin?.closest?.("form") || document;
     let field = pickPassword(scope);
     if (!field && scope !== document) field = pickPassword(document);

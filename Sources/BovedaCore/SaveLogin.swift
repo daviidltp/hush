@@ -49,6 +49,17 @@ public enum SaveLogin {
         BrowserMatch.matches(page: page, entryURL: web)
     }
 
+    /// Clave con la que se recuerda «No preguntar en esta web»: el dominio registrable
+    /// («accounts.google.com» → «google.com»). Nil si la dirección no es una web.
+    public static func siteKey(for page: String) -> String? {
+        BrowserMatch.host(of: page).map(BrowserMatch.site(of:))
+    }
+
+    /// Añade una web a la lista de «No preguntar» (sin repetir y ordenada).
+    public static func adding(_ site: String, to list: [String]) -> [String] {
+        Array(Set(list + [site])).sorted()
+    }
+
     /// Entrada nueva lista para añadir a la base.
     public static func makeEntry(title: String, user: String, password: String, url: String, notes: String) -> KDBX.Entry {
         var entry = KDBX.Entry.make(title: title)

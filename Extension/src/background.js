@@ -130,6 +130,7 @@ async function handle(message, sender) {
         // Hasta dos minutos: Hush espera a que confirmes (o a que desbloquees la base).
         return call(message.type, { origin, options: message.options ?? {} }, 125000);
       }
+      case "save-enabled":
       case "save-capture":
       case "save-user":
       case "save-offer":
@@ -223,10 +224,24 @@ const hostKey = (url) => {
   }
 };
 
-async function neverAsk() {
-  const stored = await api.storage.local.get("neverSave");
-  return Array.isArray(stored.neverSave) ? stored.neverSave : [];
+// ¿Se ofrece guardar en esta web? Lo decide Hush (su ajuste y su lista de «No preguntar»); aquí solo se
+// recuerda unos segundos en memoria para no preguntar a cada página. Sin Hush, no se captura nada.
+const SETTINGS_TTL = 10 * 1000;
+const offerCache = new Map(); // host → { enabled, until }
+
+async function offersToSave(url) {
+  const host = hostKey(url);
+  if (!host || !/^https?:/.test(url)) return false;
+  const cached = offerCache.get(host);
+  if (cached && cached.until > Date.now()) return cached.enabled;
+  const reply = await call("save-settings", { url });
+  const enabled = reply.enabled === true;
+  if (!reply.error) offerCache.set(host, { enabled, until: Date.now() + SETTINGS_TTL });
+  return enabled;
 }
+
+// Versiones anteriores guardaban «No preguntar» en la extensión; ahora vive en Hush.
+api.storage.local.remove("neverSave").catch(() => {});
 
 function forgetOffer(tabId) {
   const offer = offers.get(tabId);
@@ -258,7 +273,11 @@ async function handleSave(message, sender, url) {
   const text = (value, limit) => (typeof value === "string" ? value.slice(0, limit) : "");
 
   switch (message.type) {
+    case "save-enabled":
+      return { enabled: await offersToSave(url) };
+
     case "save-user": {
+      if (!(await offersToSave(url))) return { ok: false };
       const user = text(message.user, 1024).trim();
       const site = user && (await siteOf(url));
       if (site) tabUsers.set(tabId, { site, user, expires: Date.now() + USER_TTL });
@@ -268,7 +287,7 @@ async function handleSave(message, sender, url) {
     case "save-capture": {
       const password = text(message.password, 4096);
       if (!password || !/^https?:/.test(url)) return { ok: false };
-      if ((await neverAsk()).includes(hostKey(url))) return { ok: false };
+      if (!(await offersToSave(url))) return { ok: false };
       let user = text(message.user, 1024).trim();
       const site = await siteOf(url);
       if (!site) return { ok: false };
@@ -278,7 +297,7 @@ async function handleSave(message, sender, url) {
       if (pending && pending.user === user && pending.password === password) return { ok: true };
       const check = await call("save-check", { url, user, password });
       // Sin Hush, sin emparejar o ya guardada: nada que ofrecer.
-      if (check.error || check.known) return { ok: false };
+      if (check.error || check.known || check.disabled) return { ok: false };
       forgetOffer(tabId);
       tabUsers.delete(tabId);
       const offer = { id: crypto.randomUUID(), site: check.site || site, url, user, password, check, expires: Date.now() + OFFER_TTL };
@@ -337,9 +356,8 @@ async function handleSave(message, sender, url) {
       const offer = offers.get(tabId);
       if (offer && offer.id === message.id) forgetOffer(tabId);
       if (message.never) {
-        const host = hostKey(url);
-        const list = await neverAsk();
-        if (host && !list.includes(host)) await api.storage.local.set({ neverSave: [...list, host] });
+        offerCache.delete(hostKey(url));
+        return call("save-never", { url });
       }
       return { ok: true };
     }

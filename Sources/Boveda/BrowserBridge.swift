@@ -229,6 +229,8 @@ final class BrowserBridge {
         // Guardar lo que escribes en una web: funciona también con Hush bloqueada (lo dice la respuesta).
         switch type {
         case "site": return site(message)
+        case "save-settings": return saveSettings(message)
+        case "save-never": return neverSave(message)
         case "save-check": return saveCheck(message, model: model)
         case "save-unlock": return await unlockForSave(model: model)
         case "save-login": return await saveLogin(message, model: model)

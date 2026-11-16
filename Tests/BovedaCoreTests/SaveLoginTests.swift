@@ -57,4 +57,13 @@ import Testing
         #expect(entry.userName == "david" && entry.url == "https://github.com" && entry.notes == "nota")
         #expect(entry.kind == .login)
     }
+
+    @Test func neverAskIsPerSite() {
+        #expect(SaveLogin.siteKey(for: "https://accounts.google.com/signin") == "google.com")
+        #expect(SaveLogin.siteKey(for: "https://www.bbva.es/") == "bbva.es")
+        #expect(SaveLogin.siteKey(for: "https://ana.github.io/x") == "ana.github.io")
+        #expect(SaveLogin.siteKey(for: "chrome-extension://abc/popup.html") == nil)
+        #expect(SaveLogin.adding("google.com", to: ["bbva.es", "google.com"]) == ["bbva.es", "google.com"])
+        #expect(SaveLogin.adding("amazon.es", to: ["bbva.es"]) == ["amazon.es", "bbva.es"])
+    }
 }

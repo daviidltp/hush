@@ -17,6 +17,28 @@ extension BrowserBridge {
         return ["site": BrowserMatch.site(of: host)]
     }
 
+    /// Se avisa a Ajustes → Navegadores cuando la extensión añade una web a «No preguntar».
+    static let neverSaveChanged = Notification.Name("HushNeverSaveChanged")
+
+    /// ¿Se ofrece guardar en esta web? Lo decide el ajuste de Hush y la lista de «No preguntar».
+    /// La extensión lo pregunta antes de capturar nada: si es que no, la contraseña ni sale de la página.
+    static func offersToSave(on page: String) -> Bool {
+        guard Preferences.offerToSaveLogins, let site = SaveLogin.siteKey(for: page) else { return false }
+        return !Preferences.neverSaveSites.contains(site)
+    }
+
+    func saveSettings(_ message: [String: Any]) -> [String: Any] {
+        ["enabled": Self.offersToSave(on: message["url"] as? String ?? "")]
+    }
+
+    /// «No preguntar en esta web»: se guarda en Hush, por dominio registrable.
+    func neverSave(_ message: [String: Any]) -> [String: Any] {
+        guard let site = SaveLogin.siteKey(for: message["url"] as? String ?? "") else { return ["error": "bad-request"] }
+        Preferences.neverSaveSites = SaveLogin.adding(site, to: Preferences.neverSaveSites)
+        NotificationCenter.default.post(name: Self.neverSaveChanged, object: nil)
+        return ["ok": true]
+    }
+
     /// Qué ofrecer para lo que acabas de escribir en una web: nada (ya está), actualizar o guardar nueva.
     /// Con Hush bloqueada no se puede saber: se ofrece guardar y se vuelve a mirar al desbloquear.
     func saveCheck(_ message: [String: Any], model: AppModel) -> [String: Any] {
@@ -24,6 +46,7 @@ extension BrowserBridge {
         let user = message["user"] as? String ?? ""
         let password = message["password"] as? String ?? ""
         guard !password.isEmpty, let host = BrowserMatch.host(of: page) else { return ["error": "bad-request"] }
+        guard Self.offersToSave(on: page) else { return ["disabled": true] }
         var reply: [String: Any] = [
             "site": BrowserMatch.site(of: host),
             "title": SaveLogin.defaultTitle(for: page),
@@ -57,8 +80,9 @@ extension BrowserBridge {
     }
 
     func saveLogin(_ message: [String: Any], model: AppModel) async -> [String: Any] {
-        guard let active = model.vault else { return ["locked": true] }
         let page = message["url"] as? String ?? ""
+        guard Self.offersToSave(on: page) else { return ["error": "disabled"] }
+        guard let active = model.vault else { return ["locked": true] }
         func text(_ key: String, limit: Int = 1024) -> String {
             String((message[key] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines).prefix(limit))
         }
