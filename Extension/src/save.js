@@ -315,6 +315,8 @@
   async function pull() {
     const offer = await send({ type: "save-offer" });
     if (offer?.id && offer.id !== panel?.offer.id) showPanel(offer);
+    // La oferta ya no existe (retirada o caducada): fuera el panel, salvo mientras confirma un guardado.
+    else if (!offer?.id && panel && !panel.timer) removePanel();
   }
 
   api.runtime.onMessage.addListener((message) => {
@@ -324,7 +326,9 @@
 
   function showPanel(offer) {
     removePanel();
-    const host = document.createElement("hush-save");
+    // Un elemento estándar: con un nombre propio, la página podría definirlo como elemento personalizado
+    // y colarse en el Shadow DOM cerrado.
+    const host = document.createElement("div");
     host.style.cssText = "all: initial; position: fixed; z-index: 2147483647; top: 10px; right: 0; display: block;";
     const root = host.attachShadow({ mode: "closed" });
     root.innerHTML = `<style>${STYLE}</style>${MARKUP}`;
@@ -361,7 +365,15 @@
       event.preventDefault();
       if (event.isTrusted) save(); // Enter en un campo del panel; la página no puede enviarlo
     });
+    // Sin usarlo, el panel (y la contraseña que muestra) se va a los tres minutos, como la copia de la extensión.
+    const idle = () => {
+      clearTimeout(panel?.idle);
+      if (panel?.root === root) panel.idle = setTimeout(() => { if (panel?.root === root) removePanel(); }, 3 * 60 * 1000);
+    };
+    idle();
+    root.addEventListener("pointerdown", idle);
     root.addEventListener("input", (event) => {
+      idle();
       const field = event.composedPath()[0];
       if (field instanceof HTMLElement) field.dataset.touched = "1"; // lo cambiado a mano no se pisa al repintar
       if (field?.name === "title" || field?.name === "user") showItem();
@@ -559,6 +571,7 @@
   function removePanel() {
     if (!panel) return;
     clearTimeout(panel.timer);
+    clearTimeout(panel.idle);
     wipe(panel);
     panel.host.remove();
     panel = null;

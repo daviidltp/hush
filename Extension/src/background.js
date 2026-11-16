@@ -294,8 +294,14 @@ async function handleSave(message, sender, url) {
       const remembered = tabUsers.get(tabId);
       if (!user && remembered && remembered.expires > Date.now() && remembered.site === site) user = remembered.user;
       const pending = offers.get(tabId);
-      if (pending && pending.user === user && pending.password === password) return { ok: true };
+      if (pending && pending.site === site && pending.user === user && pending.password === password) return { ok: true };
       const check = await call("save-check", { url, user, password });
+      if (check.known && pending?.site === site) {
+        // Lo que acabas de escribir ya está en Hush: una oferta anterior de esta web (p. ej. una contraseña
+        // equivocada justo antes) ya no vale. Se retira y la página quita su panel.
+        forgetOffer(tabId);
+        api.tabs.sendMessage(tabId, { type: "hush-save-offer" }, { frameId: 0 }).catch(() => {});
+      }
       // Sin Hush, sin emparejar o ya guardada: nada que ofrecer.
       if (check.error || check.known || check.disabled) return { ok: false };
       forgetOffer(tabId);
