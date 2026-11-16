@@ -226,6 +226,14 @@ final class BrowserBridge {
             return ["ok": true]
         }
         if type == "status" { return ["locked": model.openVaults.isEmpty] }
+        // Guardar lo que escribes en una web: funciona también con Hush bloqueada (lo dice la respuesta).
+        switch type {
+        case "site": return site(message)
+        case "save-check": return saveCheck(message, model: model)
+        case "save-unlock": return await unlockForSave(model: model)
+        case "save-login": return await saveLogin(message, model: model)
+        default: break
+        }
         guard !model.openVaults.isEmpty else { return ["locked": true] }
 
         switch type {

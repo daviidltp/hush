@@ -130,6 +130,14 @@ async function handle(message, sender) {
         // Hasta dos minutos: Hush espera a que confirmes (o a que desbloquees la base).
         return call(message.type, { origin, options: message.options ?? {} }, 125000);
       }
+      case "save-capture":
+      case "save-user":
+      case "save-offer":
+      case "save-recheck":
+      case "save-unlock":
+      case "save-commit":
+      case "save-done":
+        return handleSave(message, sender, url);
       default:
         return { error: "bad-request" };
     }
@@ -178,4 +186,164 @@ api.commands.onCommand.addListener(async (command) => {
   }
   const entry = reply.entries?.[0];
   if (entry) fillTab(tab, entry, false);
+});
+
+// ---------- Guardar lo que escribes al entrar o registrarte ----------
+// La contraseña solo vive en memoria (nunca en storage) hasta que guardas o cierras el panel, y como mucho unos minutos.
+// El panel se enseña en la página principal de la pestaña, también tras la navegación que suele seguir al entrar,
+// pero solo si sigue siendo el mismo sitio.
+
+const OFFER_TTL = 3 * 60 * 1000;
+const USER_TTL = 10 * 60 * 1000;
+const offers = new Map(); // pestaña → { id, site, url, user, password, check, expires }
+const tabUsers = new Map(); // pestaña → { site, user, expires } (primer paso de un inicio de sesión en varias páginas)
+const sites = new Map(); // host → dominio registrable (lo calcula Hush con la Public Suffix List)
+
+async function siteOf(url) {
+  let host;
+  try {
+    const parsed = new URL(url);
+    if (!/^https?:$/.test(parsed.protocol)) return null;
+    host = parsed.hostname;
+  } catch {
+    return null;
+  }
+  if (sites.has(host)) return sites.get(host);
+  const reply = await call("site", { url });
+  if (!reply.site) return null;
+  sites.set(host, reply.site);
+  return reply.site;
+}
+
+const hostKey = (url) => {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+};
+
+async function neverAsk() {
+  const stored = await api.storage.local.get("neverSave");
+  return Array.isArray(stored.neverSave) ? stored.neverSave : [];
+}
+
+function forgetOffer(tabId) {
+  const offer = offers.get(tabId);
+  if (offer) offer.password = "";
+  offers.delete(tabId);
+}
+
+/// Se borra a los pocos minutos; mientras usas el panel (desbloquear, guardar) se alarga.
+function expireLater(tabId, offer) {
+  setTimeout(() => {
+    if (offers.get(tabId) !== offer) return;
+    if (offer.expires > Date.now()) expireLater(tabId, offer);
+    else forgetOffer(tabId);
+  }, Math.max(1000, offer.expires - Date.now()));
+}
+
+/// Oferta de la pestaña, si la página que pregunta es la principal y del mismo sitio.
+/// Al usar el panel (desbloquear, guardar) se alarga su vida; solo por cargar páginas, no.
+async function liveOffer(tabId, sender, url, extend = true) {
+  const offer = offers.get(tabId);
+  if (sender.frameId !== 0 || !offer || (await siteOf(url)) !== offer.site) return null;
+  if (extend) offer.expires = Date.now() + OFFER_TTL;
+  return offer;
+}
+
+async function handleSave(message, sender, url) {
+  const tabId = sender.tab?.id;
+  if (tabId == null) return { error: "bad-request" };
+  const text = (value, limit) => (typeof value === "string" ? value.slice(0, limit) : "");
+
+  switch (message.type) {
+    case "save-user": {
+      const user = text(message.user, 1024).trim();
+      const site = user && (await siteOf(url));
+      if (site) tabUsers.set(tabId, { site, user, expires: Date.now() + USER_TTL });
+      return { ok: true };
+    }
+
+    case "save-capture": {
+      const password = text(message.password, 4096);
+      if (!password || !/^https?:/.test(url)) return { ok: false };
+      if ((await neverAsk()).includes(hostKey(url))) return { ok: false };
+      let user = text(message.user, 1024).trim();
+      const site = await siteOf(url);
+      if (!site) return { ok: false };
+      const remembered = tabUsers.get(tabId);
+      if (!user && remembered && remembered.expires > Date.now() && remembered.site === site) user = remembered.user;
+      const pending = offers.get(tabId);
+      if (pending && pending.user === user && pending.password === password) return { ok: true };
+      const check = await call("save-check", { url, user, password });
+      // Sin Hush, sin emparejar o ya guardada: nada que ofrecer.
+      if (check.error || check.known) return { ok: false };
+      forgetOffer(tabId);
+      tabUsers.delete(tabId);
+      const offer = { id: crypto.randomUUID(), site: check.site || site, url, user, password, check, expires: Date.now() + OFFER_TTL };
+      offers.set(tabId, offer);
+      expireLater(tabId, offer);
+      // Aviso a la página principal (si la web navega, la página nueva lo pide al cargar).
+      api.tabs.sendMessage(tabId, { type: "hush-save-offer" }, { frameId: 0 }).catch(() => {});
+      return { ok: true };
+    }
+
+    case "save-offer": {
+      // Solo en una página del mismo sitio en el que escribiste la contraseña.
+      const offer = await liveOffer(tabId, sender, url, false);
+      if (!offer) return null;
+      const { check } = offer;
+      return {
+        id: offer.id, user: offer.user, password: offer.password, title: check.title, web: check.web,
+        locked: !!check.locked, update: check.update ?? null, groups: check.groups ?? [], vaultName: check.vaultName ?? "",
+      };
+    }
+
+    case "save-recheck": {
+      if (!(await liveOffer(tabId, sender, url))) return { error: "expired" };
+      const reply = await call("save-check", { url, user: text(message.user, 1024).trim(), password: text(message.password, 4096) });
+      if (reply.locked) return { error: "locked" };
+      return reply;
+    }
+
+    case "save-unlock":
+      if (!(await liveOffer(tabId, sender, url))) return { error: "expired" };
+      return call("save-unlock", {}, 130000);
+
+    case "save-commit": {
+      if (!(await liveOffer(tabId, sender, url))) return { error: "expired" };
+      // La dirección es la de la página (la da el navegador); Hush comprueba que la web es de ese mismo sitio.
+      const reply = await call("save-login", {
+        url,
+        password: text(message.password, 4096),
+        title: text(message.title, 1024),
+        user: text(message.user, 1024),
+        web: text(message.web, 1024),
+        notes: text(message.notes, 65536),
+        group: message.group ? text(message.group, 64) : undefined,
+        uuid: message.uuid ? text(message.uuid, 64) : undefined,
+        vault: message.vault ? text(message.vault, 4096) : undefined,
+      }, 60000);
+      if (reply.ok) forgetOffer(tabId);
+      return reply;
+    }
+
+    case "save-done": {
+      const offer = offers.get(tabId);
+      if (offer && offer.id === message.id) forgetOffer(tabId);
+      if (message.never) {
+        const host = hostKey(url);
+        const list = await neverAsk();
+        if (host && !list.includes(host)) await api.storage.local.set({ neverSave: [...list, host] });
+      }
+      return { ok: true };
+    }
+  }
+  return { error: "bad-request" };
+}
+
+api.tabs.onRemoved.addListener((tabId) => {
+  forgetOffer(tabId);
+  tabUsers.delete(tabId);
 });
