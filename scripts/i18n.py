@@ -175,8 +175,14 @@ def audit():
         with open(path, encoding="utf-8") as f:
             lines = f.read().split("\n")
         relative = os.path.relpath(path, ROOT)
+        ios_only = False  # dentro de «#if os(iOS)»: no se compila para el Mac y el iPhone va solo en español
         for number, line in enumerate(lines, 1):
-            if IGNORE_LINE.search(line):
+            directive = line.strip()
+            if directive == "#if os(iOS)":
+                ios_only = True
+            elif ios_only and directive in ("#else", "#endif"):
+                ios_only = False
+            if ios_only or IGNORE_LINE.search(line):
                 continue
             texts = []
             for a, b in literals(line):

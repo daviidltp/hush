@@ -27,7 +27,11 @@ public struct BackupStore {
             let stamp = Self.stampFormatter.string(from: Date())
             let base = url.deletingPathExtension().lastPathComponent
             let target = directory.appendingPathComponent("\(base) \(stamp).kdbx")
+            #if os(iOS)
+            try data.write(to: target, options: [.atomic, .completeFileProtection])
+            #else
             try data.write(to: target, options: [.atomic])
+            #endif
             try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: target.path)
             try prune(base: base)
         } catch {
