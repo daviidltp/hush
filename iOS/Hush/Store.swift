@@ -51,6 +51,12 @@ enum Bookmarks {
 enum AppGroup {
     static let id = "group.com.david.hush"
 
+    /// Copias previas de lo que guarda el autorrelleno (en el grupo, porque la extensión no ve la carpeta de la app).
+    static var backups: BackupStore {
+        guard let container else { return .default }
+        return BackupStore(directory: container.appending(path: "Library/Application Support/Boveda/Copias", directoryHint: .isDirectory))
+    }
+
     static var container: URL? {
         FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id)
     }
@@ -136,6 +142,19 @@ enum Preferences {
     static var browseStyle: BrowseStyle {
         get { BrowseStyle(rawValue: defaults.string(forKey: "browseStyle") ?? "") ?? .folders }
         set { defaults.set(newValue.rawValue, forKey: "browseStyle") }
+    }
+
+    /// El autorrelleno ha guardado una entrada nueva en esta base: la app lo dice al recargar.
+    static func noteAutoFillSave(for database: UUID) {
+        defaults.set(Date().timeIntervalSince1970, forKey: "autofillSaved-" + database.uuidString)
+    }
+
+    /// Devuelve (y olvida) si el autorrelleno guardó algo en esta base hace poco.
+    static func takeAutoFillSave(for database: UUID) -> Bool {
+        let key = "autofillSaved-" + database.uuidString
+        guard let stamp = defaults.object(forKey: key) as? Double else { return false }
+        defaults.removeObject(forKey: key)
+        return Date().timeIntervalSince1970 - stamp < 24 * 3600
     }
 
     static var appearance: Appearance {

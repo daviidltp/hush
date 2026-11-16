@@ -263,8 +263,8 @@ final class AppModel {
             current.unlockSeconds = Date().timeIntervalSince(start)
             update(current)
             unlockProgress?.done = true
-            // Un momento para ver el candado abrirse.
-            try? await Task.sleep(for: .milliseconds(450))
+            // Lo justo para ver el 100 %; no hacer esperar más.
+            try? await Task.sleep(for: .milliseconds(150))
             if !scoped { /* archivo propio de la app: no necesita permiso */ }
             didOpen(opened, db: current, url: scoped ? url : nil)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -279,6 +279,8 @@ final class AppModel {
         faceIDWantsPassword = false
         accessedURL = url
         openDatabase = db
+        // Lo que guardó el autorrelleno con la base cerrada ya viene dentro: no hay nada que avisar.
+        _ = Preferences.takeAutoFillSave(for: db.id)
         unsaved = false
         withAnimation(Theme.spring) { vault = opened }
         version += 1
@@ -356,7 +358,11 @@ final class AppModel {
             vault = fresh
             unsaved = false
             version += 1
-            toast = Toast(symbol: "arrow.triangle.2.circlepath", message: "Actualizada con otro dispositivo")
+            if let db = openDatabase, Preferences.takeAutoFillSave(for: db.id) {
+                toast = Toast(symbol: "key.horizontal", message: "Contraseña nueva guardada desde el autorrelleno")
+            } else {
+                toast = Toast(symbol: "arrow.triangle.2.circlepath", message: "Actualizada con otro dispositivo")
+            }
         } catch {
             alert = AlertMessage(title: "No se ha podido recargar", message: error.localizedDescription)
         }

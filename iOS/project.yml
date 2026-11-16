@@ -10,7 +10,7 @@ settings:
     SWIFT_STRICT_CONCURRENCY: minimal
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: ""
+    DEVELOPMENT_TEAM: T5TC78YWL2
     CODE_SIGN_STYLE: Automatic
 packages:
   Boveda:
@@ -50,6 +50,7 @@ targets:
       - path: Hush/Glass.swift
       - path: Hush/Store.swift
       - path: Hush/BiometricKeychain.swift
+      - path: Hush/UnlockingView.swift
     entitlements:
       path: HushAutoFill/HushAutoFill.entitlements
       properties:

@@ -45,4 +45,31 @@ final class VaultIOSTests: XCTestCase {
         }
         XCTAssertTrue(mine.changedOnDisk())
     }
+
+    /// Lo que hace «Guardar y rellenar»: entrada nueva en una carpeta, con la web y el usuario, y que la app la vea al recargar.
+    func testAutoFillNewEntryIsSavedAndSeenByApp() throws {
+        let url = folder.appendingPathComponent("Prueba.kdbx")
+        let unlock = UnlockData(masterPassword: "prueba-ios")
+        var app = try Vault.create(at: url, name: "Prueba", unlock: unlock)
+        let webFolder = app.addGroup(named: "Webs", to: app.root.uuid)
+        try app.save(backups: BackupStore(directory: folder.appendingPathComponent("Copias")))
+
+        var autofill = try Vault.open(url: url, unlock: unlock)
+        var draft = EntryDraft(entry: .make(title: ""), groupID: webFolder, isNew: true)
+        draft.title = "github.com"
+        draft.userName = "ana@example.com"
+        draft.password = PasswordGenerator.generate(GeneratorOptions())
+        draft.url = "https://github.com"
+        autofill.addEntry(draft.apply(to: draft.original), to: webFolder)
+        let backups = BackupStore(directory: folder.appendingPathComponent("Copias autorrelleno"))
+        try autofill.save(backups: backups)
+        XCTAssertEqual(backups.backups(for: url).count, 1)
+
+        XCTAssertTrue(app.changedOnDisk())
+        let reloaded = try Vault.open(url: url, unlock: unlock)
+        let saved = try XCTUnwrap(reloaded.root.group(webFolder)?.entries.first)
+        XCTAssertEqual(saved.userName, "ana@example.com")
+        XCTAssertEqual(saved.string(FieldKey.password), draft.password)
+        XCTAssertTrue(BrowserMatch.matches(page: "https://github.com/login", entry: saved))
+    }
 }

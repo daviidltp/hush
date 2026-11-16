@@ -3,7 +3,7 @@ import BovedaCore
 import SwiftUI
 
 /// Autorrelleno de iOS: aparece al tocar la llave del teclado en un campo de contraseña o de código.
-/// Pide Face ID (o la contraseña maestra), sugiere las entradas de esa web y devuelve la elegida.
+/// Pide Face ID nada más abrirse (o la contraseña maestra), sugiere las entradas de esa web y devuelve la elegida.
 /// No guarda nada: cada vez abre la base, da la contraseña y la olvida.
 final class CredentialProviderViewController: ASCredentialProviderViewController {
     private let model = AutoFillModel()
@@ -23,6 +23,12 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
             host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
         ])
         host.didMove(toParent: self)
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // Face ID solo funciona con el panel ya en pantalla.
+        model.appeared = true
     }
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
