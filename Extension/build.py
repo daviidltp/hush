@@ -16,7 +16,7 @@ out, host, version = Path(sys.argv[1]), sys.argv[2], sys.argv[3]
 base = {
     "manifest_version": 3,
     "name": "Hush",
-    "description": "Rellena tus contraseñas de Hush en cualquier web.",
+    "description": "Rellena y guarda tus contraseñas de Hush en cualquier web.",
     "version": version,
     "icons": {s: f"icons/icon-{s}.png" for s in ("16", "32", "48", "128")},
     "permissions": ["nativeMessaging", "storage", "tabs"],
@@ -24,7 +24,8 @@ base = {
     "action": {"default_title": "Hush", "default_popup": "popup.html",
                "default_icon": {s: f"icons/icon-{s}.png" for s in ("16", "32")}},
     "content_scripts": [
-        {"matches": ["<all_urls>"], "js": ["content.js"], "all_frames": True, "run_at": "document_idle"},
+        # save.js: ofrece guardar en Hush lo que escribes al entrar o registrarte.
+        {"matches": ["<all_urls>"], "js": ["content.js", "save.js"], "all_frames": True, "run_at": "document_idle"},
         # Claves de acceso: page.js en el mundo de la página (navigator.credentials) y relay.js de mensajero.
         {"matches": ["https://*/*", "http://localhost/*"], "js": ["page.js"], "run_at": "document_start", "world": "MAIN"},
         {"matches": ["https://*/*", "http://localhost/*"], "js": ["relay.js"], "run_at": "document_start"},
@@ -42,8 +43,9 @@ def copy_sources(target: Path):
     (target / "background.js").write_text(background)
     # El icono de la app va incrustado en content.js: sin archivos accesibles desde la web.
     icon = base64.b64encode((here / "src" / "icons" / "icon-48.png").read_bytes()).decode()
-    content = (target / "content.js").read_text().replace("__ICON__", f"data:image/png;base64,{icon}")
-    (target / "content.js").write_text(content)
+    for script in ("content.js", "save.js"):
+        content = (target / script).read_text().replace("__ICON__", f"data:image/png;base64,{icon}")
+        (target / script).write_text(content)
 
 
 # Chrome y familia: carpeta sin empaquetar. La clave fija el identificador de la extensión.
