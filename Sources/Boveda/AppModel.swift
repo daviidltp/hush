@@ -156,6 +156,18 @@ struct Preferences {
         set { defaults.set(newValue, forKey: "passkeysEnabled") }
     }
 
+    /// Ofrecer guardar en Hush lo que escribes al entrar o registrarte en una web (extensión del navegador).
+    static var offerToSaveLogins: Bool {
+        get { defaults.object(forKey: "offerToSaveLogins") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "offerToSaveLogins") }
+    }
+
+    /// Webs (dominio registrable) en las que dijiste «No preguntar en esta web».
+    static var neverSaveSites: [String] {
+        get { defaults.stringArray(forKey: "neverSaveSites") ?? [] }
+        set { defaults.set(newValue, forKey: "neverSaveSites") }
+    }
+
     /// Avisar de webs que permiten 2FA (lista pública de 2fa.directory).
     static var check2FA: Bool {
         get { defaults.object(forKey: "check2FA") as? Bool ?? true }
