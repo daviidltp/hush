@@ -126,7 +126,13 @@
     if (field instanceof HTMLInputElement && (field.type === "password" || textType(field))) trigger(field);
   }, true);
 
+
   // ---------- Panel «¿Guardar en Hush?» (solo en la página principal) ----------
+  //
+  // Tarjeta arriba a la derecha: cabecera (logo, pregunta, cerrar), la cuenta en una fila (con lápiz para
+  // editar los datos), y abajo «Guardar» con la carpeta a la derecha. Para actualizar, la fila lleva el botón.
+  // Entra deslizándose desde el borde derecho (150 ms, ease-out) y la sombra aparece al terminar; si vuelve a
+  // salir tras cambiar de página, solo aparece con un fundido. Al cerrarse desaparece sin animación.
 
   if (window.top !== window) return;
 
@@ -134,91 +140,159 @@
     eye: '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>',
     eyeOff: '<svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M6.2 3.8A6.6 6.6 0 0 1 8 3.5c4.1 0 6.5 4.5 6.5 4.5a11 11 0 0 1-1.8 2.3M4.2 4.9A11 11 0 0 0 1.5 8s2.4 4.5 6.5 4.5c1 0 2-.3 2.8-.7M6.6 6.6a2 2 0 0 0 2.8 2.8M2 2l12 12"/></svg>',
     close: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
-    check: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3 3 6-7"/></svg>',
-    chevron: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l4 4-4 4"/></svg>',
+    check: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 4 2.8 19.5h18.4L12 4Z" stroke-linejoin="round"/><path d="M12 10v4.2M12 16.9v.1"/></svg>',
+    pencil: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M10.6 2.6a1.5 1.5 0 0 1 2.1 0l.7.7a1.5 1.5 0 0 1 0 2.1L6 12.8l-3.3.6.6-3.3 7.3-7.5Z"/><path d="M9.5 3.8l2.7 2.7"/></svg>',
+    folder: '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M1.8 4.2c0-.7.5-1.2 1.2-1.2h3l1.4 1.6h5.6c.7 0 1.2.5 1.2 1.2v6c0 .7-.5 1.2-1.2 1.2H3c-.7 0-1.2-.5-1.2-1.2v-7.6Z"/></svg>',
+    chevron: '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>',
   };
 
-  // Colores y radios de Theme.swift (tema oscuro), como la lista de cuentas.
+  // Tokens de Theme.swift (oscuro y claro, según el sistema).
   const STYLE = `
     :host { all: initial; }
     * { box-sizing: border-box; }
-    .panel { width: 340px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow: auto;
-      background: #101213; color: #fafafa; border: 1px solid #242424; border-radius: 16px; padding: 14px 16px 12px;
-      box-shadow: 0 16px 48px rgba(0,0,0,.45), 0 2px 8px rgba(0,0,0,.3);
-      font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
-      animation: in .18s cubic-bezier(.2,.8,.2,1); }
-    @keyframes in { from { opacity: 0; transform: translateY(-6px) scale(.98); } }
-    @media (prefers-reduced-motion: reduce) { .panel { animation: none; } }
-    .top { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-    .logo { width: 20px; height: 20px; border-radius: 5px; }
-    .brand { color: #999; font-size: 12px; font-weight: 600; flex: 1; }
-    .close { all: unset; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; color: #999; cursor: pointer; }
-    .close:hover { background: #181818; color: #fafafa; }
-    h2 { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: -.01em; }
-    .sub { margin: 3px 0 0; color: #b4b4b4; font-size: 12px; overflow-wrap: anywhere; }
-    .sub:empty { display: none; }
-    form { margin: 12px 0 0; display: grid; gap: 9px; }
+    .clip {
+      --bg: #050505; --subtle: #111111; --sheet: #101213; --fill: #181818; --hover: #232526;
+      --border: #242424; --strong: #383838; --text: #fafafa; --text2: #b4b4b4; --text3: #999999;
+      --primary: #ffffff; --on-primary: #050505; --primary-hover: #e8e8e8;
+      --green: #62c28a; --amber: #f1b35b; --blue: #74b9e8;
+      --shadow: 0 12px 32px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
+      color-scheme: dark;
+    }
+    @media (prefers-color-scheme: light) {
+      .clip {
+        --bg: #ffffff; --subtle: #f7f7f7; --sheet: #ffffff; --fill: #f2f2f2; --hover: #e8e8e8;
+        --border: #ececec; --strong: #d4d4d4; --text: #0d0d0d; --text2: #595959; --text3: #6d6d6d;
+        --primary: #0d0d0d; --on-primary: #ffffff; --primary-hover: #2a2a2a;
+        --green: #1a7f37; --amber: #8f5f00; --blue: #0a6cff;
+        --shadow: 0 12px 32px rgba(0,0,0,.14), 0 2px 6px rgba(0,0,0,.08);
+        color-scheme: light;
+      }
+    }
+    /* El recorte evita que la tarjeta, mientras entra, saque una barra de desplazamiento horizontal en la página.
+       Deja sitio a la sombra y no captura clics fuera de la tarjeta. */
+    .clip { width: 468px; max-width: 100vw; padding: 0 20px 56px 48px; overflow: hidden; pointer-events: none;
+      font: 13px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; color: var(--text); }
+    .slide { transition: transform .15s ease-out, opacity .15s ease; }
+    .slide.from-edge { transform: translateX(calc(100% + 20px)); }
+    .slide.faded { opacity: 0; }
+    .card { pointer-events: auto; width: 400px; max-width: 100%; max-height: calc(100vh - 76px); overflow: auto; border: 1px solid var(--border);
+      border-radius: 16px; background: var(--subtle); box-shadow: none; transition: box-shadow .15s ease .15s; }
+    .card.lifted { box-shadow: var(--shadow); }
+    @media (prefers-reduced-motion: reduce) {
+      .slide.from-edge { transform: none; opacity: 0; }
+      .card { transition: none; }
+    }
+
+    header { display: flex; align-items: center; gap: 8px; padding: 12px 12px 10px 16px; background: var(--sheet);
+      border-bottom: .5px solid var(--border); border-radius: 16px 16px 0 0; }
+    .logo { width: 22px; height: 22px; border-radius: 6px; flex: none; }
+    h2 { margin: 0; flex: 1; min-width: 0; font-size: 14px; font-weight: 650; letter-spacing: -.01em;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .icon-button { all: unset; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 8px;
+      color: var(--text3); cursor: pointer; flex: none; }
+    .icon-button:hover { background: var(--fill); color: var(--text); }
+
+    .body { padding: 12px 12px 0; display: grid; gap: 10px; }
+    .item { display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 10px; border-radius: 12px; background: var(--sheet);
+      border: 1px solid var(--border); }
+    .avatar { width: 32px; height: 32px; border-radius: 9px; background: var(--primary); color: var(--on-primary);
+      display: grid; place-items: center; font-weight: 700; font-size: 14px; flex: none; }
+    .info { flex: 1; min-width: 0; }
+    .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .user { color: var(--text3); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .icon-button[aria-expanded="true"] { background: var(--fill); color: var(--text); }
+    .badge { all: unset; padding: 6px 12px; border-radius: 999px; background: var(--primary); color: var(--on-primary);
+      font-weight: 600; font-size: 12px; cursor: pointer; flex: none; }
+    .badge:hover { background: var(--primary-hover); }
+    .hint { margin: 0; color: var(--text2); font-size: 12px; }
+    .hint:empty { display: none; }
+
+    form { display: grid; gap: 9px; margin: 0; }
     .field { display: grid; gap: 4px; }
-    .field > span, .label { color: #999; font-size: 11px; font-weight: 600; }
-    input, select, textarea { width: 100%; margin: 0; background: #181818; color: #fafafa; border: 1px solid #242424;
+    .field > span, .label { color: var(--text3); font-size: 11px; font-weight: 600; }
+    input, textarea { width: 100%; margin: 0; background: var(--fill); color: var(--text); border: 1px solid var(--border);
       border-radius: 10px; padding: 7px 10px; font: inherit; outline: none; }
     textarea { resize: vertical; min-height: 52px; }
-    select { appearance: none; padding-right: 28px; cursor: pointer;
-      background-image: linear-gradient(45deg, transparent 50%, #999 50%), linear-gradient(135deg, #999 50%, transparent 50%);
-      background-position: calc(100% - 15px) 52%, calc(100% - 10px) 52%; background-size: 5px 5px; background-repeat: no-repeat; }
-    input:focus, select:focus, textarea:focus { border-color: #383838; box-shadow: 0 0 0 3px rgba(116,185,232,.18); }
+    input:focus, textarea:focus { border-color: var(--strong); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue) 22%, transparent); }
     .pw { position: relative; }
     .pw input { padding-right: 36px; font-family: ui-monospace, "SF Mono", Menlo, monospace; }
-    .eye { all: unset; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 28px; height: 26px;
-      display: grid; place-items: center; border-radius: 7px; color: #999; cursor: pointer; }
-    .eye:hover { color: #fafafa; background: #232526; }
-    .more { all: unset; display: inline-flex; align-items: center; gap: 4px; color: #b4b4b4; font-size: 12px; cursor: pointer; width: max-content; }
-    .more svg { transition: transform .15s; }
-    .more[aria-expanded="true"] svg { transform: rotate(90deg); }
-    .extra { display: grid; gap: 9px; }
-    .extra[hidden], [hidden] { display: none !important; }
-    .status { margin: 0; font-size: 12px; color: #f1b35b; }
-    .status:empty { display: none; }
-    .actions { display: flex; gap: 8px; margin-top: 3px; }
-    .button { all: unset; flex: 1; text-align: center; padding: 8px 12px; border-radius: 10px; font-weight: 600; cursor: pointer; }
-    .primary { background: #fff; color: #050505; }
-    .primary:hover { background: #e8e8e8; }
-    .secondary { background: #181818; color: #fafafa; border: 1px solid #242424; }
-    .secondary:hover { background: #232526; }
+    .pw .icon-button { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 28px; height: 26px; }
+
+    footer { padding: 12px; display: grid; gap: 8px; }
+    .row { display: flex; align-items: center; gap: 8px; }
+    .button { all: unset; padding: 8px 16px; border-radius: 10px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .primary { background: var(--primary); color: var(--on-primary); }
+    .primary:hover { background: var(--primary-hover); }
+    .ghost { color: var(--text2); padding: 8px 10px; }
+    .ghost:hover { background: var(--fill); color: var(--text); }
     .button[aria-disabled="true"] { opacity: .55; cursor: default; }
-    .never { all: unset; justify-self: center; color: #999; font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
-    .never:hover { color: #fafafa; text-decoration: underline; }
-    .done { display: flex; align-items: center; gap: 10px; }
-    .done .ok { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: rgba(98,194,138,.15); color: #62c28a; flex: none; }
-    button:focus-visible, .close:focus-visible, .eye:focus-visible, .more:focus-visible, .never:focus-visible { outline: 2px solid #74b9e8; outline-offset: 2px; }
+    .chip { margin-left: auto; position: relative; display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 170px;
+      padding: 6px 8px 6px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--sheet); color: var(--text2); }
+    .chip:hover { border-color: var(--strong); color: var(--text); }
+    .chip svg { flex: none; }
+    .chip span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
+    /* El selector de verdad va encima, transparente: así se abre el menú nativo del navegador. */
+    .chip select { position: absolute; inset: 0; opacity: 0; cursor: pointer; font: inherit; width: 100%; }
+    .never { all: unset; justify-self: start; color: var(--text3); font-size: 12px; cursor: pointer; padding: 2px 4px; margin-left: -4px; border-radius: 6px; }
+    .never:hover { color: var(--text); text-decoration: underline; }
+    .status { margin: 0; padding: 0 16px 12px; font-size: 12px; color: var(--amber); }
+    .status:empty { display: none; }
+
+    .done { display: flex; align-items: center; gap: 14px; padding: 16px; }
+    .done .mark { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; flex: none;
+      background: color-mix(in srgb, var(--green) 16%, transparent); color: var(--green); }
+    .done.warning .mark { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+    .done p { margin: 0; }
+    .done .what { font-weight: 600; }
+    .done .detail { color: var(--text3); font-size: 12px; overflow-wrap: anywhere; }
+
+    [hidden] { display: none !important; }
+    button:focus-visible, .icon-button:focus-visible, .badge:focus-visible, .never:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+    .chip:focus-within { outline: 2px solid var(--blue); outline-offset: 2px; }
   `;
 
   const MARKUP = `
-    <div class="panel" role="dialog" aria-labelledby="heading">
-      <div class="top"><img class="logo" alt=""><span class="brand">Hush</span>
-        <button type="button" class="close" aria-label="Cerrar">${ICONS.close}</button></div>
-      <h2 id="heading"></h2>
-      <p class="sub"></p>
-      <form novalidate>
-        <label class="field" data-new><span>Título</span><input name="title" autocomplete="off" spellcheck="false" maxlength="1024"></label>
-        <label class="field" data-new><span>Usuario</span><input name="user" autocomplete="off" spellcheck="false" maxlength="1024"></label>
-        <div class="field"><span class="label" id="pw-label">Contraseña</span>
-          <div class="pw"><input name="password" type="password" autocomplete="off" spellcheck="false" aria-labelledby="pw-label" maxlength="4096">
-          <button type="button" class="eye" aria-label="Mostrar contraseña">${ICONS.eye}</button></div></div>
-        <label class="field" data-new><span>Web</span><input name="web" autocomplete="off" spellcheck="false" maxlength="1024"></label>
-        <button type="button" class="more" aria-expanded="false" data-new>${ICONS.chevron}Más opciones</button>
-        <div class="extra" hidden data-new>
-          <label class="field" data-folder><span>Carpeta</span><select name="group"></select></label>
-          <label class="field"><span>Nota</span><textarea name="notes" rows="2" maxlength="65536"></textarea></label>
+    <div class="clip"><div class="slide">
+      <section class="card" role="dialog" aria-labelledby="heading">
+        <header>
+          <img class="logo" alt="">
+          <h2 id="heading"></h2>
+          <button type="button" class="icon-button close" aria-label="Ahora no" title="Ahora no">${ICONS.close}</button>
+        </header>
+        <div class="content">
+          <div class="body">
+            <div class="item">
+              <span class="avatar" aria-hidden="true"></span>
+              <div class="info"><div class="name"></div><div class="user"></div></div>
+              <button type="button" class="icon-button edit" aria-expanded="false" aria-label="Editar antes de guardar" title="Editar">${ICONS.pencil}</button>
+              <button type="button" class="badge update">Actualizar</button>
+            </div>
+            <p class="hint"></p>
+            <form class="editor" novalidate hidden>
+              <label class="field" data-new><span>Título</span><input name="title" autocomplete="off" spellcheck="false" maxlength="1024"></label>
+              <label class="field" data-new><span>Usuario</span><input name="user" autocomplete="off" spellcheck="false" maxlength="1024"></label>
+              <div class="field"><span class="label" id="pw-label">Contraseña</span>
+                <div class="pw"><input name="password" type="password" autocomplete="off" spellcheck="false" aria-labelledby="pw-label" maxlength="4096">
+                <button type="button" class="icon-button eye" aria-label="Mostrar contraseña">${ICONS.eye}</button></div></div>
+              <label class="field" data-new><span>Web</span><input name="web" autocomplete="off" spellcheck="false" maxlength="1024"></label>
+              <label class="field" data-new><span>Nota</span><textarea name="notes" rows="2" maxlength="65536"></textarea></label>
+              <button type="submit" hidden></button>
+            </form>
+          </div>
+          <footer>
+            <div class="row" data-new>
+              <button type="button" class="button primary save">Guardar</button>
+              <button type="button" class="button ghost later">Ahora no</button>
+              <label class="chip" data-folder title="Carpeta">${ICONS.folder}<span class="folder-name"></span>${ICONS.chevron}
+                <select name="group" aria-label="Carpeta"></select></label>
+            </div>
+            <button type="button" class="never">No preguntar en esta web</button>
+          </footer>
+          <p class="status" role="status" aria-live="polite"></p>
         </div>
-        <p class="status" role="status" aria-live="polite"></p>
-        <div class="actions">
-          <button type="button" class="button secondary later">Ahora no</button>
-          <button type="submit" class="button primary save">Guardar</button>
-        </div>
-        <button type="button" class="never">No preguntar en esta web</button>
-      </form>
-    </div>`;
+      </section>
+    </div></div>`;
 
   let panel = null; // { host, root, offer, busy, timer }
 
@@ -235,7 +309,7 @@
   function showPanel(offer) {
     removePanel();
     const host = document.createElement("hush-save");
-    host.style.cssText = "all: initial; position: fixed; z-index: 2147483647; top: 16px; right: 16px; display: block;";
+    host.style.cssText = "all: initial; position: fixed; z-index: 2147483647; top: 10px; right: 0; display: block;";
     const root = host.attachShadow({ mode: "closed" });
     root.innerHTML = `<style>${STYLE}</style>${MARKUP}`;
     root.querySelector(".logo").src = APP_ICON;
@@ -245,11 +319,20 @@
     }
     panel = { host, root, offer, busy: false };
     render();
+
     const $ = (s) => root.querySelector(s);
     const trusted = (fn) => (event) => { if (event.isTrusted) fn(event); };
     $(".close").addEventListener("click", trusted(() => dismiss(false)));
     $(".later").addEventListener("click", trusted(() => dismiss(false)));
     $(".never").addEventListener("click", trusted(() => dismiss(true)));
+    $(".save").addEventListener("click", trusted(() => save()));
+    $(".update").addEventListener("click", trusted(() => save()));
+    $(".edit").addEventListener("click", trusted(() => {
+      const open = $(".edit").getAttribute("aria-expanded") !== "true";
+      $(".edit").setAttribute("aria-expanded", String(open));
+      $(".editor").hidden = !open;
+      if (open) $('[name="title"]').focus();
+    }));
     $(".eye").addEventListener("click", trusted(() => {
       const input = $('input[name="password"]');
       const show = input.type === "password";
@@ -257,26 +340,52 @@
       $(".eye").innerHTML = show ? ICONS.eyeOff : ICONS.eye;
       $(".eye").setAttribute("aria-label", show ? "Ocultar contraseña" : "Mostrar contraseña");
     }));
-    $(".more").addEventListener("click", trusted(() => {
-      const open = $(".more").getAttribute("aria-expanded") !== "true";
-      $(".more").setAttribute("aria-expanded", String(open));
-      $(".extra").hidden = !open;
-    }));
-    $("form").addEventListener("submit", (event) => {
+    $('select[name="group"]').addEventListener("change", () => showFolder());
+    $(".editor").addEventListener("submit", (event) => {
       event.preventDefault();
-      // Enter en un campo del panel o clic en «Guardar»: tiene que venir de ti, no de la página.
-      if (event.isTrusted) save();
+      if (event.isTrusted) save(); // Enter en un campo del panel; la página no puede enviarlo
     });
-    $(".save").addEventListener("click", (event) => { if (!event.isTrusted) event.preventDefault(); }, true);
-    // Lo que cambies a mano no se pisa al volver a pintar el panel (p. ej. tras desbloquear).
     root.addEventListener("input", (event) => {
       const field = event.composedPath()[0];
-      if (field instanceof HTMLElement) field.dataset.touched = "1";
+      if (field instanceof HTMLElement) field.dataset.touched = "1"; // lo cambiado a mano no se pisa al repintar
+      if (field?.name === "title" || field?.name === "user") showItem();
     });
     root.addEventListener("keydown", (event) => {
       if (event.isTrusted && event.key === "Escape") dismiss(false);
     });
+
     document.documentElement.appendChild(host);
+    enter(offer.animate === "slide");
+  }
+
+  /// Entrada: desde el borde derecho la primera vez; con un fundido si reaparece tras cambiar de página.
+  function enter(slide) {
+    const { root } = panel;
+    const box = root.querySelector(".slide");
+    const card = root.querySelector(".card");
+    box.classList.add(slide ? "from-edge" : "faded");
+    box.getBoundingClientRect(); // fija el punto de partida antes de animar
+    requestAnimationFrame(() => {
+      box.classList.remove("from-edge", "faded");
+      card.classList.add("lifted"); // la sombra llega cuando la tarjeta ya está en su sitio
+    });
+  }
+
+  /// Fila de la cuenta: título y usuario tal como se van a guardar.
+  function showItem() {
+    const { root, offer } = panel;
+    const $ = (s) => root.querySelector(s);
+    const title = offer.update ? (offer.update.title || offer.title) : $('[name="title"]').value.trim() || offer.title;
+    const user = offer.update ? offer.user : $('[name="user"]').value.trim();
+    $(".name").textContent = title || "Sin título";
+    $(".user").textContent = user || "Sin usuario";
+    $(".avatar").textContent = (title || "?").charAt(0).toUpperCase();
+  }
+
+  function showFolder() {
+    const select = panel.root.querySelector('select[name="group"]');
+    const name = select.selectedOptions[0]?.dataset.name ?? "";
+    panel.root.querySelector(".folder-name").textContent = name;
   }
 
   /// Pone el panel según la oferta: cuenta nueva o actualizar la contraseña de una entrada.
@@ -285,13 +394,13 @@
     const $ = (s) => root.querySelector(s);
     const update = offer.update;
     $("#heading").textContent = update ? "¿Actualizar la contraseña?" : "¿Guardar en Hush?";
-    let sub = "";
-    if (update) sub = `${update.title || offer.title} · ${offer.user || "sin usuario"}`;
-    else if (offer.locked) sub = "Hush está bloqueada: al guardar te pedirá Touch ID o la contraseña.";
-    $(".sub").textContent = sub;
     for (const el of root.querySelectorAll("[data-new]")) el.hidden = !!update;
-    if (!update) $(".extra").hidden = $(".more").getAttribute("aria-expanded") !== "true";
-    $(".save").textContent = update ? "Actualizar" : "Guardar";
+    $(".edit").hidden = !!update;
+    $(".update").hidden = !update;
+    // Al actualizar se ve la contraseña nueva (con el ojo); para guardar, los datos se editan con el lápiz.
+    if (update) $(".editor").hidden = false;
+    else $(".editor").hidden = $(".edit").getAttribute("aria-expanded") !== "true";
+    $(".hint").textContent = offer.locked ? "Hush está bloqueada: al guardar te pedirá Touch ID o la contraseña." : "";
 
     const fill = (name, value) => {
       const input = $(`[name="${name}"]`);
@@ -309,11 +418,14 @@
     for (const group of offer.groups || []) {
       const option = document.createElement("option");
       option.value = group.id;
+      option.dataset.name = group.name;
       option.textContent = `${" ".repeat(Math.min(group.level, 6))}${group.name}`;
       select.append(option);
     }
     if (previous && [...select.options].some((o) => o.value === previous)) select.value = previous;
-    $("[data-folder]").hidden = !(offer.groups || []).length;
+    $("[data-folder]").hidden = !!update || !(offer.groups || []).length;
+    showFolder();
+    showItem();
   }
 
   function setStatus(text) {
@@ -321,7 +433,7 @@
   }
 
   function setBusy(label) {
-    const button = panel.root.querySelector(".save");
+    const button = panel.root.querySelector(panel.offer.update ? ".update" : ".save");
     panel.busy = !!label;
     button.setAttribute("aria-disabled", String(!!label));
     button.textContent = label || (panel.offer.update ? "Actualizar" : "Guardar");
@@ -360,24 +472,24 @@
       // Ya desbloqueada: se mira de nuevo si la cuenta ya estaba en Hush.
       const check = await send({ type: "save-recheck", user: value("user"), password: value("password") });
       if (panel !== current) return;
-      if (check.known) return finish("Ya estaba guardada en Hush.");
+      if (check.known) return finish("Ya estaba en Hush", value("title") || current.offer.title);
       if (check.error) {
         setBusy(null);
         setStatus(ERRORS[check.error] || "No se ha podido comprobar. Prueba otra vez.");
         return;
       }
       current.offer = { ...current.offer, ...check, locked: false };
+      setBusy(null);
       render();
       if (check.update) {
         // Cambia lo que se va a hacer: mejor que lo confirmes.
-        setBusy(null);
         setStatus("Ya tenías esta cuenta en Hush. Pulsa Actualizar para cambiar su contraseña.");
         return;
       }
     }
 
-    setBusy(current.offer.update ? "Actualizando…" : "Guardando…");
     const update = current.offer.update;
+    setBusy(update ? "Actualizando…" : "Guardando…");
     const reply = await send({
       type: "save-commit",
       password: value("password"),
@@ -386,10 +498,11 @@
         : { title: value("title"), user: value("user"), web: value("web"), group: value("group") || undefined, notes: value("notes") }),
     });
     if (panel !== current) return;
-    if (reply.ok) {
-      finish(reply.saved
-        ? (update ? "Contraseña actualizada en Hush." : "Guardado en Hush.")
-        : "Está en Hush, pero no se ha podido escribir el archivo. Abre Hush para revisarlo.", !reply.saved);
+    const what = update ? (update.title || current.offer.title) : (value("title").trim() || current.offer.title);
+    if (reply.ok && reply.saved) {
+      finish(update ? "Contraseña actualizada" : "Guardado en Hush", what);
+    } else if (reply.ok) {
+      finish("No se ha podido escribir el archivo", "Está en Hush, pero sin guardar en disco. Abre Hush para revisarlo.", true);
     } else if (reply.locked) {
       current.offer.locked = true;
       setBusy(null);
@@ -401,16 +514,18 @@
     }
   }
 
-  /// Muestra el resultado un momento y cierra.
-  function finish(text, warning) {
+  /// La misma tarjeta pasa a confirmar lo que ha pasado y se cierra sola.
+  function finish(text, detail, warning) {
     const current = panel;
     send({ type: "save-done", id: current.offer.id });
     wipe(current);
-    const box = current.root.querySelector(".panel");
-    box.innerHTML = `<div class="done"><span class="ok">${ICONS.check}</span><div><h2></h2></div></div>`;
-    box.querySelector("h2").textContent = text;
-    if (warning) box.querySelector(".ok").style.cssText = "background: rgba(241,179,91,.15); color: #f1b35b;";
-    current.timer = setTimeout(() => { if (panel === current) removePanel(); }, warning ? 6000 : 2200);
+    const content = current.root.querySelector(".content");
+    content.innerHTML = `<div class="done${warning ? " warning" : ""}"><span class="mark">${warning ? ICONS.warning : ICONS.check}</span>
+      <div><p class="what"></p><p class="detail"></p></div></div>`;
+    content.querySelector(".what").textContent = text;
+    content.querySelector(".detail").textContent = detail || "";
+    current.root.querySelector("#heading").textContent = "Hush";
+    current.timer = setTimeout(() => { if (panel === current) removePanel(); }, warning ? 6000 : 2600);
   }
 
   function dismiss(never) {

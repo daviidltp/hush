@@ -294,8 +294,12 @@ async function handleSave(message, sender, url) {
       const offer = await liveOffer(tabId, sender, url, false);
       if (!offer) return null;
       const { check } = offer;
+      // Entra deslizándose la primera vez. Si la web navega justo después de entrar (lo normal), la página
+      // anterior apenas lo llegó a enseñar: en la nueva también se desliza. Si reaparece más tarde, con un fundido.
+      offer.shownAt ??= Date.now();
+      const animate = Date.now() - offer.shownAt < 1500 ? "slide" : "fade";
       return {
-        id: offer.id, user: offer.user, password: offer.password, title: check.title, web: check.web,
+        id: offer.id, animate, user: offer.user, password: offer.password, title: check.title, web: check.web,
         locked: !!check.locked, update: check.update ?? null, groups: check.groups ?? [], vaultName: check.vaultName ?? "",
       };
     }
