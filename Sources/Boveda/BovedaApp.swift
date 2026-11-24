@@ -63,9 +63,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     QuickSearchPanel.show()
                 }
             }
+            // HUSH_TEST_KEYS="github:b": escribe «github» en la búsqueda rápida, pulsa ⌘B y dice qué quedó en el
+            // portapapeles. Las teclas entran por la cola de eventos de la app, como las de verdad.
+            if let keys = ProcessInfo.processInfo.environment["HUSH_TEST_KEYS"], let colon = keys.lastIndex(of: ":") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                    MainActor.assumeIsolated { Self.testKeys(text: String(keys[..<colon]), command: String(keys[keys.index(after: colon)...])) }
+                }
+            }
         }
         #endif
     }
+
+    #if DEBUG
+    @MainActor
+    private static func testKeys(text: String, command: String) {
+        guard let panel = NSApp.windows.first(where: { $0 is QuickSearchPanel && $0.isVisible }) else { print("HUSH_TEST_KEYS: sin panel"); return }
+        if !panel.isKeyWindow { panel.makeKey() }
+        func post(_ characters: String, _ flags: NSEvent.ModifierFlags) {
+            for type in [NSEvent.EventType.keyDown, .keyUp] {
+                if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: panel.windowNumber, context: nil, characters: characters,
+                                                charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 0) {
+                    NSApp.postEvent(event, atStart: false)
+                }
+            }
+        }
+        for character in text { post(String(character), []) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            post(command, .command)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                print("HUSH_TEST_KEYS: panel key=\(panel.isKeyWindow) portapapeles=\(NSPasteboard.general.string(forType: .string) ?? "")")
+                fflush(stdout)
+            }
+        }
+    }
+    #endif
 
     /// Con el icono de la barra de menús, cerrar la ventana no cierra la app.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -179,7 +211,7 @@ struct AppCommands: Commands {
                 // con texto seleccionado se copia el texto; si no, en la ventana principal, la contraseña.
                 if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.selectedRange().length > 0 {
                     editor.copy(nil)
-                } else if copiesEntry, NSApp.keyWindow === model.mainWindow {
+                } else if copiesEntry, (NSApp.keyWindow ?? model.mainWindow) === model.mainWindow {
                     model.copyPassword()
                 } else {
                     NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
@@ -190,7 +222,7 @@ struct AppCommands: Commands {
                 .keyboardShortcut("v")
             Button("Seleccionar todo") {
                 // En un campo de texto, su texto; en la ventana principal, las entradas.
-                if NSApp.keyWindow?.firstResponder is NSTextView || NSApp.keyWindow !== model.mainWindow {
+                if NSApp.keyWindow?.firstResponder is NSTextView || (NSApp.keyWindow ?? model.mainWindow) !== model.mainWindow {
                     NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
                 } else {
                     model.selectAllEntries()
