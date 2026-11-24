@@ -63,9 +63,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     QuickSearchPanel.show()
                 }
             }
+            // HUSH_TEST_KEYS="github:b": escribe «github» en la búsqueda rápida, pulsa ⌘B y dice si en el
+            // portapapeles quedó HUSH_TEST_EXPECT (sin escribir el valor). Las teclas entran por la cola de eventos de la app, como las de verdad.
+            if let keys = ProcessInfo.processInfo.environment["HUSH_TEST_KEYS"], let colon = keys.lastIndex(of: ":") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
+                    MainActor.assumeIsolated { Self.testKeys(text: String(keys[..<colon]), command: String(keys[keys.index(after: colon)...])) }
+                }
+            }
         }
         #endif
     }
+
+    #if DEBUG
+    @MainActor
+    private static func testKeys(text: String, command: String) {
+        guard let panel = NSApp.windows.first(where: { $0 is QuickSearchPanel && $0.isVisible }) else { print("HUSH_TEST_KEYS: sin panel"); return }
+        if !panel.isKeyWindow { panel.makeKey() }
+        print("HUSH_TEST_KEYS: panel key antes=\(panel.isKeyWindow)")
+        func post(_ characters: String, _ flags: NSEvent.ModifierFlags) {
+            for type in [NSEvent.EventType.keyDown, .keyUp] {
+                if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
+                                                windowNumber: panel.windowNumber, context: nil, characters: characters,
+                                                charactersIgnoringModifiers: characters, isARepeat: false, keyCode: 0) {
+                    NSApp.postEvent(event, atStart: false)
+                }
+            }
+        }
+        for character in text { post(String(character), []) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            let changes = NSPasteboard.general.changeCount
+            post(command, .command)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                print("HUSH_TEST_KEYS: panel key=\(panel.isKeyWindow) copiado=\(NSPasteboard.general.changeCount != changes && ProcessInfo.processInfo.environment["HUSH_TEST_EXPECT"].map { NSPasteboard.general.string(forType: .string) == $0 } == true)")
+                fflush(stdout)
+            }
+        }
+    }
+    #endif
 
     /// Con el icono de la barra de menús, cerrar la ventana no cierra la app.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -105,7 +139,6 @@ struct AppCommands: Commands {
     let model: AppModel
     @FocusedValue(\.browserFocus) private var browserFocus
 
-    private var entriesFocused: Bool { browserFocus == .entries }
     /// ⌘↑/⌘↓ solo ordenan grupos si el foco está en la lista, no en un campo de texto.
     private var listFocused: Bool { browserFocus == .entries || browserFocus == .groups }
 
@@ -117,6 +150,19 @@ struct AppCommands: Commands {
         openWindow(id: "entry", value: PopOutTarget(entryID: id, vault: url))
     }
     private var hasEntry: Bool { unlocked && model.selectedEntry != nil }
+    /// ⌘C copia la contraseña si hay entrada y no se está editando nada (el editor u otra hoja abierta).
+    private var copiesEntry: Bool { hasEntry && model.editing == nil && model.sheet == nil }
+
+    /// ⌘⌫ es también «borrar hasta el principio de la línea» en cualquier campo de texto, y los atajos
+    /// del menú llegan antes que el campo: sin esto, borrar lo escrito en el buscador mandaba a la papelera
+    /// la entrada seleccionada (que al buscar es el primer resultado) sin que se viera.
+    private func deleteFromMenu() {
+        if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.isEditable {
+            editor.deleteToBeginningOfLine(nil)
+            return
+        }
+        model.deleteSelected()
+    }
 
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
@@ -162,14 +208,27 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .pasteboard) {
             Button("Cortar") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
                 .keyboardShortcut("x")
-            Button(entriesFocused && hasEntry ? L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName : L("Copiar")) {
-                if entriesFocused && hasEntry { model.copyPassword() } else { NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) }
+            Button(copiesEntry ? L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName : L("Copiar")) {
+                // Se decide al pulsar, no por el foco de SwiftUI (que casi nunca estaba en la lista y ⌘C no hacía nada):
+                // con texto seleccionado se copia el texto; si no, en la ventana principal, la contraseña.
+                if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.selectedRange().length > 0 {
+                    editor.copy(nil)
+                } else if copiesEntry, (NSApp.keyWindow ?? model.mainWindow) === model.mainWindow {
+                    model.copyPassword()
+                } else {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("c")
             Button("Pegar") { NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil) }
                 .keyboardShortcut("v")
             Button("Seleccionar todo") {
-                if entriesFocused { model.selectAllEntries() } else { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
+                // En un campo de texto, su texto; en la ventana principal, las entradas.
+                if NSApp.keyWindow?.firstResponder is NSTextView || (NSApp.keyWindow ?? model.mainWindow) !== model.mainWindow {
+                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                } else {
+                    model.selectAllEntries()
+                }
             }
             .keyboardShortcut("a")
         }
@@ -201,7 +260,7 @@ struct AppCommands: Commands {
             Button("Añadir o quitar de favoritos") { if let id = model.selectedEntryID { model.toggleFavorite(id) } }.disabled(!hasEntry)
             Button("Ir al grupo de la entrada") { model.jumpToGroup() }.keyboardShortcut("j", modifiers: [.command, .shift]).disabled(!hasEntry)
             Divider()
-            Button(model.deleteTitle(for: model.selectedIDs)) { model.deleteSelected() }.keyboardShortcut(.delete).disabled(!hasEntry)
+            Button(model.deleteTitle(for: model.selectedIDs)) { deleteFromMenu() }.keyboardShortcut(.delete).disabled(!hasEntry)
         }
         CommandMenu("Base de datos") {
             Button("Bloquear") { model.lock() }.keyboardShortcut("l").disabled(!unlocked)

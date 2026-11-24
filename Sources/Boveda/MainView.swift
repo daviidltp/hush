@@ -503,8 +503,8 @@ private struct EntryListView: View {
                     return .handled
                 }
                 .onKeyPress(.return) { if let id = model.selectedEntryID { model.edit(id) }; return .handled }
-                .onKeyPress(.delete) { model.deleteSelected(); return .handled }
-                .onKeyPress(.deleteForward) { model.deleteSelected(); return .handled }
+                // Borrar es solo con ⌘⌫ (menú Entrada), como en el Finder: la tecla ⌫ sola, pulsada creyendo
+                // que el cursor está en el buscador, mandaba entradas a la papelera sin darse cuenta.
                 .onKeyPress(.escape) {
                     if model.isMultiSelecting { model.selectedEntryID = model.selectedEntryID; return .handled }
                     guard !model.search.isEmpty else { return .ignored }

@@ -117,6 +117,11 @@ async function handle(message, sender) {
         return call("fill", { uuid: message.uuid, vault: message.vault, url, explicit: false });
       case "unlock":
         return call("unlock");
+      // ⇧⌘L pulsado en la página: el navegador no siempre asigna el atajo (si otra extensión lo usa o si
+      // Hush se instaló antes de tenerlo), así que content.js también lo escucha. Siempre en la pestaña que lo envía.
+      case "autofill":
+        // Solo desde la página principal: un iframe de otra web no puede pedir rellenar la de arriba.
+        return sender.tab && sender.frameId === 0 ? autofill(sender.tab) : { error: "bad-request" };
       case "passkey-create":
       case "passkey-get": {
         // Solo la página principal. El origen sale de la dirección que da el navegador, no de la página.
@@ -176,17 +181,19 @@ async function handle(message, sender) {
 }
 
 // ⇧⌘L: rellena con la entrada de esta web que usaste la última vez.
-api.commands.onCommand.addListener(async (command) => {
-  if (command !== "autofill") return;
-  const tab = await activeTab();
-  if (!tab?.url) return;
+async function autofill(tab) {
+  if (!tab?.url) return { error: "no-page" };
   const reply = await call("list", { url: tab.url });
   if (reply.locked) {
     call("unlock");
-    return;
+    return { locked: true };
   }
   const entry = reply.entries?.[0];
-  if (entry) fillTab(tab, entry, false);
+  return entry ? fillTab(tab, entry, false) : { error: "no-entry" };
+}
+
+api.commands.onCommand.addListener(async (command) => {
+  if (command === "autofill") autofill(await activeTab());
 });
 
 // ---------- Guardar lo que escribes al entrar o registrarte ----------

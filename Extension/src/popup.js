@@ -144,6 +144,22 @@ async function showVault() {
     }, 120);
   });
 
+  // Los mismos atajos que en Hush: ⌘C contraseña, ⌘B usuario, ⌘T código 2FA (sobre la cuenta marcada).
+  document.addEventListener("keydown", (event) => {
+    const mod = /Mac/i.test(navigator.platform) ? event.metaKey : event.ctrlKey;
+    if (!mod || event.shiftKey || event.altKey) return;
+    const entry = rows[highlighted];
+    const key = event.key.toLowerCase();
+    if (!entry || !["c", "b", "t"].includes(key)) return;
+    // Con texto seleccionado en el buscador, ⌘C copia ese texto.
+    if (key === "c" && search.selectionStart !== search.selectionEnd) return;
+    event.preventDefault();
+    if (key === "c") copy(entry, "password", "Contraseña copiada");
+    else if (key === "b") copy(entry, "user", "Usuario copiado");
+    else if (entry.totp) copy(entry, "totp", "Código copiado");
+    else say("Esta cuenta no tiene código 2FA", true);
+  });
+
   search.addEventListener("keydown", (event) => {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();

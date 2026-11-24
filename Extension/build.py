@@ -31,7 +31,9 @@ base = {
         {"matches": ["https://*/*", "http://localhost/*"], "js": ["relay.js"], "run_at": "document_start"},
     ],
     "commands": {"autofill": {"suggested_key": {"default": "Ctrl+Shift+L", "mac": "Command+Shift+L"},
-                              "description": "Rellenar con la última cuenta usada en esta web"}},
+                              "description": "Rellenar con la última cuenta usada en esta web"},
+                 "_execute_action": {"suggested_key": {"default": "Ctrl+Shift+K", "mac": "Command+Shift+K"},
+                                     "description": "Abrir Hush"}},
 }
 
 

@@ -320,6 +320,16 @@
   document.addEventListener("keydown", (event) => {
     // Solo teclas de verdad: la página no puede abrir la lista ni elegir una cuenta con eventos inventados.
     if (!event.isTrusted) return;
+    // ⇧⌘L (⇧Ctrl+L fuera del Mac): rellenar con la última cuenta de esta web. Si el navegador ya tiene el atajo
+    // asignado a Hush, la página ni lo ve; esto cubre cuando no lo asignó.
+    const mac = /Mac/i.test(navigator.platform);
+    if (event.key?.toLowerCase() === "l" && event.shiftKey && !event.altKey
+        && (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      api.runtime.sendMessage({ type: "autofill" }).catch(() => {});
+      return;
+    }
     const target = event.composedPath()[0];
     if (!isOpen() && event.key === "ArrowDown" && !event.altKey && badgeField && target instanceof HTMLInputElement
         && isLoginField(target) && badgeHost?.style.display !== "none") {
