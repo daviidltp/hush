@@ -91,7 +91,7 @@ final class MenuBarItem: NSObject {
 
 /// Ventanita bajo el icono. No activa Hush (como la búsqueda rápida): al copiar puedes pegar
 /// directamente en la app de antes. Se cierra al hacer clic fuera o con Esc.
-private final class MenuBarPanel: NSPanel {
+final class MenuBarPanel: NSPanel {
     private let onClose: () -> Void
     override var canBecomeKey: Bool { true }
 

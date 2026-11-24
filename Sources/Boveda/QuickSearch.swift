@@ -145,6 +145,7 @@ struct QuickSearchView: View {
     @State private var index = 0
     @State private var copied: String?
     @FocusState private var focused: Bool
+    @State private var shortcutMonitor: Any?
 
     private var results: [QuickResult] {
         let terms = query.lowercased().split(separator: " ").map(String.init)
@@ -219,7 +220,9 @@ struct QuickSearchView: View {
             focused = true
             // El panel acaba de hacerse key: se repite un instante después para que el cursor quede en el buscador.
             DispatchQueue.main.async { focused = true }
+            startShortcuts()
         }
+        .onDisappear(perform: stopShortcuts)
     }
 
     private var locked: some View {
@@ -268,15 +271,6 @@ struct QuickSearchView: View {
                 .onKeyPress(.downArrow) { index = min(index + 1, max(results.count - 1, 0)); return .handled }
                 .onKeyPress(.upArrow) { index = max(index - 1, 0); return .handled }
                 .onKeyPress(.escape) { close(); return .handled }
-                .onKeyPress(keys: ["b", "t", "u"], phases: .down) { press in
-                    guard press.modifiers.contains(.command) else { return .ignored }
-                    switch press.characters {
-                    case "b": act(.user)
-                    case "t": act(.totp)
-                    default: act(.openURL)
-                    }
-                    return .handled
-                }
         }
         // El aviso flota encima: dentro del HStack encogía el buscador al aparecer.
         .overlay(alignment: .trailing) {
@@ -383,11 +377,46 @@ struct QuickSearchView: View {
             }
         case .user: copy(item.value(FieldKey.userName), L("Usuario copiado"))
         case .totp:
-            guard let totp = TOTP.from(item.entry) else { return }
+            guard let totp = TOTP.from(item.entry) else { flash(L("Sin código 2FA")); return }
             copy(totp.code(), L("Código copiado"))
         case .openURL:
             copy(item.value(FieldKey.password), L("Contraseña copiada"))
             if let url = URL.fromUserInput(item.value(FieldKey.url)) { NSWorkspace.shared.open(url) }
+        }
+    }
+
+    /// ⌘C, ⌘B, ⌘T y ⌘U se atienden aquí antes que nada: si no, los coge el menú de la app (que actúa sobre
+    /// la entrada de la ventana principal) o el campo de texto, y en la búsqueda no pasaba nada.
+    private func startShortcuts() {
+        stopShortcuts()
+        shortcutMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard let window = event.window, window.isKeyWindow,
+                  compact ? window is MenuBarPanel : window is QuickSearchPanel,
+                  event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command else { return event }
+            switch event.charactersIgnoringModifiers?.lowercased() {
+            case "c":
+                // Con texto seleccionado en el buscador, ⌘C copia ese texto, como siempre.
+                if let editor = window.firstResponder as? NSTextView, editor.selectedRange().length > 0 { return event }
+                act(.password)
+            case "b": act(.user)
+            case "t": act(.totp)
+            case "u": act(.openURL)
+            default: return event
+            }
+            return nil
+        }
+    }
+
+    private func stopShortcuts() {
+        if let shortcutMonitor { NSEvent.removeMonitor(shortcutMonitor) }
+        shortcutMonitor = nil
+    }
+
+    /// Aviso que no cierra la búsqueda (cuando no hay nada que copiar).
+    private func flash(_ message: String) {
+        withAnimation(.easeOut(duration: 0.12)) { copied = message }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation(.easeOut(duration: 0.15)) { if copied == message { copied = nil } }
         }
     }
 

@@ -1126,7 +1126,8 @@ final class AppModel {
     }
 
     func copyTOTP() {
-        guard let entry = selectedEntry?.entry, let totp = TOTP.from(entry) else { return }
+        guard let entry = selectedEntry?.entry else { return }
+        guard let totp = TOTP.from(entry) else { showToast(L("Esta entrada no tiene código 2FA")); return }
         copy(totp.code(), label: L("Código 2FA"))
     }
 

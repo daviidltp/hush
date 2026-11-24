@@ -105,7 +105,6 @@ struct AppCommands: Commands {
     let model: AppModel
     @FocusedValue(\.browserFocus) private var browserFocus
 
-    private var entriesFocused: Bool { browserFocus == .entries }
     /// ⌘↑/⌘↓ solo ordenan grupos si el foco está en la lista, no en un campo de texto.
     private var listFocused: Bool { browserFocus == .entries || browserFocus == .groups }
 
@@ -117,6 +116,8 @@ struct AppCommands: Commands {
         openWindow(id: "entry", value: PopOutTarget(entryID: id, vault: url))
     }
     private var hasEntry: Bool { unlocked && model.selectedEntry != nil }
+    /// ⌘C copia la contraseña si hay entrada y no se está editando nada (el editor u otra hoja abierta).
+    private var copiesEntry: Bool { hasEntry && model.editing == nil && model.sheet == nil }
 
     /// ⌘⌫ es también «borrar hasta el principio de la línea» en cualquier campo de texto, y los atajos
     /// del menú llegan antes que el campo: sin esto, borrar lo escrito en el buscador mandaba a la papelera
@@ -173,14 +174,27 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .pasteboard) {
             Button("Cortar") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
                 .keyboardShortcut("x")
-            Button(entriesFocused && hasEntry ? L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName : L("Copiar")) {
-                if entriesFocused && hasEntry { model.copyPassword() } else { NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) }
+            Button(copiesEntry ? L("Copiar ") + (model.selectedEntry?.entry.kind ?? .login).mainValueName : L("Copiar")) {
+                // Se decide al pulsar, no por el foco de SwiftUI (que casi nunca estaba en la lista y ⌘C no hacía nada):
+                // con texto seleccionado se copia el texto; si no, en la ventana principal, la contraseña.
+                if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.selectedRange().length > 0 {
+                    editor.copy(nil)
+                } else if copiesEntry, NSApp.keyWindow === model.mainWindow {
+                    model.copyPassword()
+                } else {
+                    NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil)
+                }
             }
             .keyboardShortcut("c")
             Button("Pegar") { NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil) }
                 .keyboardShortcut("v")
             Button("Seleccionar todo") {
-                if entriesFocused { model.selectAllEntries() } else { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
+                // En un campo de texto, su texto; en la ventana principal, las entradas.
+                if NSApp.keyWindow?.firstResponder is NSTextView || NSApp.keyWindow !== model.mainWindow {
+                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
+                } else {
+                    model.selectAllEntries()
+                }
             }
             .keyboardShortcut("a")
         }
