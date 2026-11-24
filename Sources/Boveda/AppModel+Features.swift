@@ -11,9 +11,9 @@ extension AppModel {
     var isMultiSelecting: Bool { selection.count > 1 }
 
     /// Seleccionadas en el orden de la lista.
+    /// Solo las que se ven: lo que una búsqueda o un filtro esconde nunca se borra ni se mueve por estar seleccionado antes.
     var selectedIDs: [UUID] {
-        let list = visibleEntries.map(\.uuid).filter(selection.contains)
-        return list.isEmpty ? Array(selection) : list
+        visibleEntries.map(\.uuid).filter(selection.contains)
     }
 
     /// Clic en una fila: normal, ⌘ (añadir o quitar) o ⇧ (rango).
@@ -60,6 +60,7 @@ extension AppModel {
 
     func deleteSelection() {
         let ids = selectedIDs
+        guard !ids.isEmpty else { return }
         // Al buscar también en la papelera se pueden mezclar: se dice qué pasa con cada parte.
         let permanent = ids.filter(deletesPermanently).count
         let moved = ids.count - permanent

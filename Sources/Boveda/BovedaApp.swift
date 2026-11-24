@@ -118,6 +118,17 @@ struct AppCommands: Commands {
     }
     private var hasEntry: Bool { unlocked && model.selectedEntry != nil }
 
+    /// ⌘⌫ es también «borrar hasta el principio de la línea» en cualquier campo de texto, y los atajos
+    /// del menú llegan antes que el campo: sin esto, borrar lo escrito en el buscador mandaba a la papelera
+    /// la entrada seleccionada (que al buscar es el primer resultado) sin que se viera.
+    private func deleteFromMenu() {
+        if let editor = NSApp.keyWindow?.firstResponder as? NSTextView, editor.isEditable {
+            editor.deleteToBeginningOfLine(nil)
+            return
+        }
+        model.deleteSelected()
+    }
+
     var body: some Commands {
         CommandGroup(replacing: .newItem) {
             Button("Nueva entrada") { model.newEntry() }
@@ -201,7 +212,7 @@ struct AppCommands: Commands {
             Button("Añadir o quitar de favoritos") { if let id = model.selectedEntryID { model.toggleFavorite(id) } }.disabled(!hasEntry)
             Button("Ir al grupo de la entrada") { model.jumpToGroup() }.keyboardShortcut("j", modifiers: [.command, .shift]).disabled(!hasEntry)
             Divider()
-            Button(model.deleteTitle(for: model.selectedIDs)) { model.deleteSelected() }.keyboardShortcut(.delete).disabled(!hasEntry)
+            Button(model.deleteTitle(for: model.selectedIDs)) { deleteFromMenu() }.keyboardShortcut(.delete).disabled(!hasEntry)
         }
         CommandMenu("Base de datos") {
             Button("Bloquear") { model.lock() }.keyboardShortcut("l").disabled(!unlocked)

@@ -1186,7 +1186,10 @@ final class AppModel {
         }
         let list = visibleEntries
         let index = list.firstIndex { $0.uuid == id }
+        let title = root?.allEntries().first { $0.uuid == id }?.title ?? ""
+        let permanent = deletesPermanently(id)
         mutate { $0.deleteEntry(id) }
+        showToast(permanent ? L("«\(title)» eliminada para siempre") : L("«\(title)» movida a la papelera"))
         let remaining = visibleEntries
         if let index, !remaining.isEmpty { selectedEntryID = remaining[min(index, remaining.count - 1)].uuid } else { selectedEntryID = nil }
     }
