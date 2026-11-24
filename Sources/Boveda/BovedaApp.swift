@@ -91,9 +91,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         for character in text { post(String(character), []) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            let changes = NSPasteboard.general.changeCount
             post(command, .command)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                print("HUSH_TEST_KEYS: panel key=\(panel.isKeyWindow) copiado=\(NSPasteboard.general.string(forType: .string) == ProcessInfo.processInfo.environment["HUSH_TEST_EXPECT"])")
+                print("HUSH_TEST_KEYS: panel key=\(panel.isKeyWindow) copiado=\(NSPasteboard.general.changeCount != changes && ProcessInfo.processInfo.environment["HUSH_TEST_EXPECT"].map { NSPasteboard.general.string(forType: .string) == $0 } == true)")
                 fflush(stdout)
             }
         }
