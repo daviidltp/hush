@@ -63,8 +63,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     QuickSearchPanel.show()
                 }
             }
-            // HUSH_TEST_KEYS="github:b": escribe «github» en la búsqueda rápida, pulsa ⌘B y dice qué quedó en el
-            // portapapeles. Las teclas entran por la cola de eventos de la app, como las de verdad.
+            // HUSH_TEST_KEYS="github:b": escribe «github» en la búsqueda rápida, pulsa ⌘B y dice si en el
+            // portapapeles quedó HUSH_TEST_EXPECT (sin escribir el valor). Las teclas entran por la cola de eventos de la app, como las de verdad.
             if let keys = ProcessInfo.processInfo.environment["HUSH_TEST_KEYS"], let colon = keys.lastIndex(of: ":") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 6) {
                     MainActor.assumeIsolated { Self.testKeys(text: String(keys[..<colon]), command: String(keys[keys.index(after: colon)...])) }
@@ -79,6 +79,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private static func testKeys(text: String, command: String) {
         guard let panel = NSApp.windows.first(where: { $0 is QuickSearchPanel && $0.isVisible }) else { print("HUSH_TEST_KEYS: sin panel"); return }
         if !panel.isKeyWindow { panel.makeKey() }
+        print("HUSH_TEST_KEYS: panel key antes=\(panel.isKeyWindow)")
         func post(_ characters: String, _ flags: NSEvent.ModifierFlags) {
             for type in [NSEvent.EventType.keyDown, .keyUp] {
                 if let event = NSEvent.keyEvent(with: type, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
@@ -92,7 +93,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
             post(command, .command)
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                print("HUSH_TEST_KEYS: panel key=\(panel.isKeyWindow) portapapeles=\(NSPasteboard.general.string(forType: .string) ?? "")")
+                print("HUSH_TEST_KEYS: panel key=\(panel.isKeyWindow) copiado=\(NSPasteboard.general.string(forType: .string) == ProcessInfo.processInfo.environment["HUSH_TEST_EXPECT"])")
                 fflush(stdout)
             }
         }

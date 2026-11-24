@@ -120,7 +120,8 @@ async function handle(message, sender) {
       // ⇧⌘L pulsado en la página: el navegador no siempre asigna el atajo (si otra extensión lo usa o si
       // Hush se instaló antes de tenerlo), así que content.js también lo escucha. Siempre en la pestaña que lo envía.
       case "autofill":
-        return sender.tab ? autofill(sender.tab) : { error: "bad-request" };
+        // Solo desde la página principal: un iframe de otra web no puede pedir rellenar la de arriba.
+        return sender.tab && sender.frameId === 0 ? autofill(sender.tab) : { error: "bad-request" };
       case "passkey-create":
       case "passkey-get": {
         // Solo la página principal. El origen sale de la dirección que da el navegador, no de la página.

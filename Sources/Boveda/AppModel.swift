@@ -1189,7 +1189,9 @@ final class AppModel {
         let index = list.firstIndex { $0.uuid == id }
         let title = root?.allEntries().first { $0.uuid == id }?.title ?? ""
         let permanent = deletesPermanently(id)
+        let before = revision
         mutate { $0.deleteEntry(id) }
+        guard revision != before else { return }  // No se aplicó (p. ej., cambiando la contraseña): ya avisa mutate.
         showToast(permanent ? L("«\(title)» eliminada para siempre") : L("«\(title)» movida a la papelera"))
         let remaining = visibleEntries
         if let index, !remaining.isEmpty { selectedEntryID = remaining[min(index, remaining.count - 1)].uuid } else { selectedEntryID = nil }
@@ -1401,7 +1403,8 @@ final class AppModel {
 
     func deleteSelected() {
         if selection.count > 1 { deleteSelection(); return }
-        if let id = selectedEntryID { delete(id) }
+        // Solo si se ve: nunca se borra algo que una búsqueda o un filtro esconden.
+        if let id = selectedEntryID, visibleEntries.contains(where: { $0.uuid == id }) { delete(id) }
     }
 
     /// ⌘W: cierra la base de datos y vuelve a la pantalla de inicio.
