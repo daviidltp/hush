@@ -152,6 +152,7 @@ async function handle(message, sender) {
   // Desde la ventanita de la extensión.
   switch (message.type) {
     case "state": {
+      syncPasskeys(true);
       const tab = await activeTab();
       const status = await call("status");
       return { ...status, code: await pairingCode(), url: tab?.url ?? "" };
@@ -191,6 +192,46 @@ async function autofill(tab) {
   const entry = reply.entries?.[0];
   return entry ? fillTab(tab, entry, false) : { error: "no-entry" };
 }
+
+// ---------- Claves de acceso (passkeys) ----------
+// Por defecto Hush no toca navigator.credentials: las passkeys las da el Mac (o el navegador).
+// Solo si activas «Guardar y usar claves de acceso con Hush» en Hush se inyectan page.js y relay.js.
+const PASSKEY_SCRIPTS = [
+  { id: "hush-passkey-page", js: ["page.js"], world: "MAIN" },
+  { id: "hush-passkey-relay", js: ["relay.js"] },
+].map((script) => ({ ...script, matches: ["https://*/*", "http://localhost/*"], runAt: "document_start", persistAcrossSessions: false }));
+const PASSKEY_TTL = 30 * 1000;
+let passkeyCheck = { until: 0, running: null };
+
+async function syncPasskeys(force = false) {
+  if (!force && passkeyCheck.until > Date.now()) return;
+  if (passkeyCheck.running) return passkeyCheck.running;
+  passkeyCheck.running = (async () => {
+    // Sin respuesta clara de Hush (cerrada, sin conectar o versión antigua), apagadas.
+    const reply = await call("passkey-settings");
+    const enabled = reply.enabled === true;
+    const ids = PASSKEY_SCRIPTS.map((script) => script.id);
+    const registered = (await api.scripting.getRegisteredContentScripts({ ids }).catch(() => [])).length === ids.length;
+    if (enabled && !registered) {
+      await api.scripting.unregisterContentScripts({ ids }).catch(() => {});
+      await api.scripting.registerContentScripts(PASSKEY_SCRIPTS).catch(() => {});
+    } else if (!enabled) {
+      await api.scripting.unregisterContentScripts({ ids }).catch(() => {});
+    }
+    passkeyCheck.until = Date.now() + PASSKEY_TTL;
+  })().finally(() => {
+    passkeyCheck.running = null;
+  });
+  return passkeyCheck.running;
+}
+
+syncPasskeys(true);
+api.runtime.onStartup?.addListener(() => syncPasskeys(true));
+api.runtime.onInstalled?.addListener(() => syncPasskeys(true));
+// Al cambiar el ajuste en Hush, se nota en la siguiente web que cargues (como mucho 30 s después).
+api.tabs.onUpdated.addListener((_tabId, change) => {
+  if (change.status === "loading") syncPasskeys();
+});
 
 api.commands.onCommand.addListener(async (command) => {
   if (command === "autofill") autofill(await activeTab());

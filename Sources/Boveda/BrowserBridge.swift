@@ -230,6 +230,8 @@ final class BrowserBridge {
         switch type {
         case "site": return site(message)
         case "save-settings": return saveSettings(message)
+        // La extensión solo toca navigator.credentials si este ajuste está activado.
+        case "passkey-settings": return ["enabled": Preferences.passkeysEnabled]
         case "save-never": return neverSave(message)
         case "save-check": return saveCheck(message, model: model)
         case "save-unlock": return await unlockForSave(model: model)

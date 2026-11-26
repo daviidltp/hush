@@ -35,7 +35,7 @@ struct BrowserSettings: View {
                 Toggle("Guardar y usar claves de acceso (passkeys) con Hush", isOn: $passkeys)
                     .onChange(of: passkeys) { Preferences.passkeysEnabled = passkeys }
             } footer: {
-                Text("Cuando una web te ofrezca crear una clave de acceso o entrar con ella, Hush lo hará con la clave guardada en tu base (te pedirá confirmación cada vez). Se guardan en el formato de las apps KeePass, así que también sirven en el móvil.")
+                Text("Apagado (lo normal), las claves de acceso las da tu Mac o el navegador y la extensión no se mete. Encendido, cuando una web te ofrezca crear una clave de acceso o entrar con ella, Hush lo hará con la clave guardada en tu base (te pedirá confirmación cada vez); se guardan en el formato de las apps KeePass, así que también sirven en el móvil. El cambio se nota al recargar la web.")
                     .font(.ui(11)).foregroundStyle(Theme.textTertiary)
             }
 
