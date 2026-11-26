@@ -151,8 +151,9 @@ struct Preferences {
     }
 
     /// Crear y usar claves de acceso (passkeys) de las webs con Hush, a través de la extensión.
+    /// Apagado por defecto: las passkeys las da el Mac (o el navegador) y la extensión no se mete.
     static var passkeysEnabled: Bool {
-        get { defaults.object(forKey: "passkeysEnabled") as? Bool ?? true }
+        get { defaults.object(forKey: "passkeysEnabled") as? Bool ?? false }
         set { defaults.set(newValue, forKey: "passkeysEnabled") }
     }
 

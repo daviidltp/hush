@@ -19,16 +19,15 @@ base = {
     "description": "Rellena y guarda tus contraseñas de Hush en cualquier web.",
     "version": version,
     "icons": {s: f"icons/icon-{s}.png" for s in ("16", "32", "48", "128")},
-    "permissions": ["nativeMessaging", "storage", "tabs"],
+    "permissions": ["nativeMessaging", "scripting", "storage", "tabs"],
     "host_permissions": ["<all_urls>"],
     "action": {"default_title": "Hush", "default_popup": "popup.html",
                "default_icon": {s: f"icons/icon-{s}.png" for s in ("16", "32")}},
     "content_scripts": [
         # save.js: ofrece guardar en Hush lo que escribes al entrar o registrarte.
         {"matches": ["<all_urls>"], "js": ["content.js", "save.js"], "all_frames": True, "run_at": "document_idle"},
-        # Claves de acceso: page.js en el mundo de la página (navigator.credentials) y relay.js de mensajero.
-        {"matches": ["https://*/*", "http://localhost/*"], "js": ["page.js"], "run_at": "document_start", "world": "MAIN"},
-        {"matches": ["https://*/*", "http://localhost/*"], "js": ["relay.js"], "run_at": "document_start"},
+        # Las claves de acceso (page.js y relay.js) no van aquí: background.js solo las inyecta si se activan en Hush.
+        # Apagadas, navigator.credentials queda intacto y las passkeys son las del Mac o del navegador.
     ],
     "commands": {"autofill": {"suggested_key": {"default": "Ctrl+Shift+L", "mac": "Command+Shift+L"},
                               "description": "Rellenar con la última cuenta usada en esta web"},
