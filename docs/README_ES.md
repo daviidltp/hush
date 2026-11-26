@@ -33,12 +33,13 @@ Para comprobar una descarga: compárala con `SHA256SUMS` de la misma versión, o
 Requiere macOS 15 o posterior y las herramientas de línea de comandos de Xcode (Swift 6.1).
 
 ```sh
-swift test                      # tests
 ./build-app.sh                  # compila, firma e instala en ~/Applications/Hush.app
 CONFIG=debug ./build-app.sh     # versión de pruebas en build/, sin instalar
 ```
 
 Para firmar, pon tu certificado en la variable `SIGN_IDENTITY` o en un archivo `.sign-identity` (no se sube a git). Sin certificado se firma ad hoc: la app funciona, pero Touch ID y el llavero necesitan una firma estable.
+
+Sigue la [guía de pruebas](TESTING.md).
 
 ## Extensión del navegador
 

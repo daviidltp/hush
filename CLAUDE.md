@@ -2,7 +2,7 @@
 
 Gestor de contraseñas para Mac e iPhone, basado en archivos KDBX.
 
-Para preparar una copia de pruebas, ejecuta `CONFIG=debug ./build-app.sh`. Para probar la lógica, ejecuta `swift test`. La instalación y la publicación están en [CONTRIBUTING.md](CONTRIBUTING.md).
+Para compilar o instalar, sigue el [README](README.md#build). La publicación está en [CONTRIBUTING.md](CONTRIBUTING.md#publicar-una-versión-solo-el-mantenedor).
 
 | Si vas a… | Lee… |
 | --- | --- |

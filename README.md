@@ -33,12 +33,13 @@ To check a download: compare it with `SHA256SUMS` from the same release, or veri
 Requires macOS 15 or later and the Xcode command line tools (Swift 6.1+).
 
 ```sh
-swift test                      # tests
 ./build-app.sh                  # build, sign and install to ~/Applications/Hush.app
 CONFIG=debug ./build-app.sh     # test build in build/, not installed
 ```
 
 To sign, put your certificate name in the `SIGN_IDENTITY` variable or in a `.sign-identity` file (ignored by git). Without one the app is signed ad hoc: it runs, but Touch ID and the Keychain need a stable signature.
+
+Run tests using the [test guide](docs/TESTING.md).
 
 ## Browser extension
 
