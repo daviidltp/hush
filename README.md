@@ -1,6 +1,6 @@
 <p align="center"><img src="docs/logo/llave/icono.png" width="128" alt=""></p>
 
-<p align="center">English · <a href="README.es.md">Español</a></p>
+<p align="center">English · <a href="docs/README_ES.md">Español</a></p>
 
 # Hush
 

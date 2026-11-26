@@ -1,6 +1,6 @@
-<p align="center"><img src="docs/logo/llave/icono.png" width="128" alt=""></p>
+<p align="center"><img src="logo/llave/icono.png" width="128" alt=""></p>
 
-<p align="center"><a href="README.md">English</a> · Español</p>
+<p align="center"><a href="../README.md">English</a> · Español</p>
 
 # Hush
 
@@ -59,11 +59,11 @@ La extensión todavía no está en las tiendas de Chrome ni de Firefox. Hasta en
 - Claves de acceso: el origen lo da el navegador, no la página; una web solo puede usar claves de su propio dominio (nunca de un sufijo público), solo en https y en la ventana principal, y cada vez que se crea o se usa una Hush pide confirmación. La clave privada va como campo protegido dentro de la base.
 - Lo que Hush **no** protege: un Mac ya infectado con malware que corre con tu usuario.
 
-Si encuentras un fallo de seguridad, mira [SECURITY.md](SECURITY.md). Para contribuir, [CONTRIBUTING.md](CONTRIBUTING.md).
+Si encuentras un fallo de seguridad, mira [SECURITY.md](../SECURITY.md). Para contribuir, [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Idiomas
 
-Hush usa el idioma del Mac: español, inglés, alemán, francés, italiano y portugués (Brasil). Las traducciones están en `Resources/i18n/<idioma>.json`; para añadir o corregir una, mira [CONTRIBUTING.md](CONTRIBUTING.md#translations).
+Hush usa el idioma del Mac: español, inglés, alemán, francés, italiano y portugués (Brasil). Las traducciones están en `Resources/i18n/<idioma>.json`; para añadir o corregir una, mira [CONTRIBUTING.md](../CONTRIBUTING.md#translations).
 
 ## Créditos
 
@@ -75,4 +75,4 @@ Hush usa el idioma del Mac: español, inglés, alemán, francés, italiano y por
 
 ## Licencia
 
-[MIT](LICENSE) · [English](README.md)
+[MIT](../LICENSE) · [English](../README.md)
